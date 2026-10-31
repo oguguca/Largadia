@@ -4,6 +4,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import type { RaceType, RegistrationStatus, ModerationStatus } from "../src/generated/prisma/enums";
 import { slugify } from "../src/lib/slug";
 import { addDays, startOfDayBrt, weekdayBrt } from "../src/lib/dates";
+import { hashPassword } from "../src/lib/password";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
 
@@ -26,12 +27,14 @@ type SeedRace = {
   organizer: string;
   description: string;
   moderation?: ModerationStatus;
+  coupon?: [code: string, label: string];
+  featured?: number;
 };
 
 const races: SeedRace[] = [
-  { name: "Corrida Noturna da Paulista", when: "sab", time: "20:00", city: "São Paulo", state: "SP", venue: "Avenida Paulista, em frente ao MASP", lat: -23.5614, lng: -46.6559, distances: [5, 10], type: "NOTURNA", price: [119, 149], status: "ABERTAS", organizer: "Ritmo Eventos Esportivos", description: "Percurso plano pela avenida mais famosa da cidade, com iluminação especial, DJ na chegada e medalha que brilha no escuro.\n\nRetirada do kit na sexta-feira, no shopping parceiro." },
+  { name: "Corrida Noturna da Paulista", when: "sab", time: "20:00", city: "São Paulo", state: "SP", venue: "Avenida Paulista, em frente ao MASP", lat: -23.5614, lng: -46.6559, distances: [5, 10], type: "NOTURNA", price: [119, 149], status: "ABERTAS", coupon: ["LARGADIA10", "10% off"], featured: 1, organizer: "Ritmo Eventos Esportivos", description: "Percurso plano pela avenida mais famosa da cidade, com iluminação especial, DJ na chegada e medalha que brilha no escuro.\n\nRetirada do kit na sexta-feira, no shopping parceiro." },
   { name: "Desafio Ibirapuera 10K", when: "dom", time: "07:00", city: "São Paulo", state: "SP", venue: "Parque Ibirapuera, Portão 3", lat: -23.5874, lng: -46.6576, distances: [5, 10], type: "RUA", price: [99, 129], status: "ABERTAS", organizer: "Clube Pé na Pista", description: "Duas voltas pelo entorno do parque, com hidratação a cada 2,5 km e cronometragem por chip." },
-  { name: "Circuito Orla de Copacabana", when: "dom", time: "06:30", city: "Rio de Janeiro", state: "RJ", venue: "Posto 6, Copacabana", lat: -22.9867, lng: -43.1891, distances: [5, 10, 21.1], type: "RUA", price: [110, 189], status: "ABERTAS", organizer: "Carioca Run", description: "Largada no Posto 6 com vista para o mar. A meia maratona segue até o Leme e volta pelo Aterro." },
+  { name: "Circuito Orla de Copacabana", when: "dom", time: "06:30", city: "Rio de Janeiro", state: "RJ", venue: "Posto 6, Copacabana", lat: -22.9867, lng: -43.1891, distances: [5, 10, 21.1], type: "RUA", price: [110, 189], status: "ABERTAS", featured: 2, organizer: "Carioca Run", description: "Largada no Posto 6 com vista para o mar. A meia maratona segue até o Leme e volta pelo Aterro." },
   { name: "Trail Serra do Curral", when: "sab", time: "07:30", city: "Belo Horizonte", state: "MG", venue: "Parque da Serra do Curral", lat: -19.9486, lng: -43.9133, distances: [8, 15, 25], type: "TRAIL", price: [140, 210], status: "ABERTAS", organizer: "Montanha Outdoor", description: "Trilhas técnicas com subidas fortes e vista da cidade inteira. Obrigatório levar reservatório de água de 500 ml." },
   { name: "Meia Maratona de São Paulo 2027", when: 98, time: "06:00", city: "São Paulo", state: "SP", venue: "Praça Charles Miller, Pacaembu", lat: -23.5475, lng: -46.6653, distances: [5, 10, 21.1], type: "RUA", price: [149, 259], status: "EM_BREVE", opensIn: 10, organizer: "Ritmo Eventos Esportivos", description: "A meia mais tradicional da capital passa pelo centro histórico e pelo Minhocão. Inscrições abrem em breve, com lote promocional limitado." },
   { name: "Maratona de Porto Alegre", when: 196, time: "06:30", city: "Porto Alegre", state: "RS", venue: "Usina do Gasômetro", lat: -30.0346, lng: -51.2413, distances: [5, 10, 21.1, 42.195], type: "RUA", price: [130, 320], status: "EM_BREVE", opensIn: 21, organizer: "Pampa Corridas", description: "Percurso plano e rápido à beira do Guaíba, ideal para buscar índice e recorde pessoal." },
@@ -45,7 +48,7 @@ const races: SeedRace[] = [
   { name: "Corrida do Farol da Barra", when: 20, time: "06:00", city: "Salvador", state: "BA", venue: "Farol da Barra", lat: -13.0104, lng: -38.5326, distances: [5, 10], type: "RUA", price: [90, 120], status: "ESGOTADAS", organizer: "Axé Run", description: "Uma das provas mais concorridas da Bahia. Percurso pela orla da Barra até Ondina." },
   { name: "Meia Maratona de Salvador", when: 85, time: "05:30", city: "Salvador", state: "BA", venue: "Jardim de Alah", lat: -12.9984, lng: -38.4615, distances: [5, 10, 21.1], type: "RUA", price: [120, 210], status: "EM_BREVE", opensIn: 14, organizer: "Axé Run", description: "Percurso pela orla atlântica, com largada cedo para fugir do calor." },
   { name: "Corrida Ponta Negra", when: 27, time: "06:00", city: "Manaus", state: "AM", venue: "Calçadão da Ponta Negra", lat: -3.0846, lng: -60.0711, distances: [5, 10], type: "RUA", price: [85, 110], status: "ABERTAS", organizer: "Amazônia Esportes", description: "Corrida às margens do Rio Negro, com hidratação reforçada e frutas regionais na chegada." },
-  { name: "Circuito Ilha da Magia", when: 50, time: "07:00", city: "Florianópolis", state: "SC", venue: "Beira-Mar Norte", lat: -27.5838, lng: -48.5536, distances: [5, 10, 21.1], type: "RUA", price: [119, 199], status: "ABERTAS", organizer: "Ilha Run", description: "A Beira-Mar Norte é palco de um percurso plano com vista para as pontes." },
+  { name: "Circuito Ilha da Magia", when: 50, time: "07:00", city: "Florianópolis", state: "SC", venue: "Beira-Mar Norte", lat: -27.5838, lng: -48.5536, distances: [5, 10, 21.1], type: "RUA", price: [119, 199], status: "ABERTAS", coupon: ["ILHA15", "15% off"], featured: 3, organizer: "Ilha Run", description: "A Beira-Mar Norte é palco de um percurso plano com vista para as pontes." },
   { name: "Trail Lagoa da Conceição", when: 64, time: "07:00", city: "Florianópolis", state: "SC", venue: "Trilha da Costa da Lagoa", lat: -27.5966, lng: -48.4643, distances: [12, 24], type: "TRAIL", price: [150, 230], status: "ABERTAS", organizer: "Ilha Run", description: "Trilha histórica à beira da lagoa, com trechos de areia e travessia de pontes de madeira." },
   { name: "Corrida do Parque da Cidade", when: 9, time: "07:00", city: "Brasília", state: "DF", venue: "Parque da Cidade Sarah Kubitschek", lat: -15.8007, lng: -47.9068, distances: [5, 10], type: "RUA", price: [0, 0], status: "ABERTAS", organizer: "Prefeitura Esportiva do DF", description: "Corrida gratuita de incentivo ao esporte. Vagas limitadas por ordem de inscrição." },
   { name: "Corrida da Lua Cheia", when: 33, time: "20:30", city: "Natal", state: "RN", venue: "Via Costeira", lat: -5.8466, lng: -35.1857, distances: [5, 10], type: "NOTURNA", price: [95, 125], status: "ABERTAS", organizer: "Potiguar Run", description: "Largada na noite de lua cheia pela Via Costeira, entre as dunas e o mar." },
@@ -63,6 +66,10 @@ const races: SeedRace[] = [
   { name: "Corrida Cultural Pelourinho", when: 47, time: "07:00", city: "Salvador", state: "BA", venue: "Largo do Pelourinho", lat: -12.9714, lng: -38.5108, distances: [5], type: "TEMATICA", price: [70, 70], status: "ABERTAS", organizer: "Axé Run", description: "Percurso pelo centro histórico com bandas de percussão ao longo do caminho." },
   { name: "Corrida da Independência de João Pessoa", when: 60, time: "05:30", city: "João Pessoa", state: "PB", venue: "Busto de Tamandaré", lat: -7.1175, lng: -34.8236, distances: [5, 10], type: "RUA", price: [80, 100], status: "ABERTAS", organizer: "Paraíba Corre", description: "Largada no ponto mais oriental das Américas, com o nascer do sol mais cedo do Brasil." },
   { name: "Volta Cuiabana", when: 39, time: "06:00", city: "Cuiabá", state: "MT", venue: "Parque das Águas", lat: -15.5698, lng: -56.0777, distances: [5, 10], type: "RUA", price: [80, 110], status: "ABERTAS", organizer: "MT Run", description: "Largada bem cedo para fugir do calor cuiabano, com pontos extras de hidratação." },
+  // Já realizadas, para testar o rótulo "Realizada" e futuras avaliações
+  { name: "Corrida da Primavera", when: -20, time: "07:00", city: "São Paulo", state: "SP", venue: "Parque Villa-Lobos", lat: -23.5469, lng: -46.7225, distances: [5, 10], type: "RUA", price: [89, 119], status: "ENCERRADAS", organizer: "Clube Pé na Pista", description: "Edição de primavera com percurso plano e arborizado pelo parque." },
+  { name: "Night Run Guaíba", when: -12, time: "19:30", city: "Porto Alegre", state: "RS", venue: "Orla do Guaíba", lat: -30.0423, lng: -51.2384, distances: [5, 10], type: "NOTURNA", price: [95, 125], status: "ENCERRADAS", organizer: "Pampa Corridas", description: "Corrida ao pôr do sol na orla revitalizada do Guaíba." },
+  { name: "Meia do Cerrado", when: -5, time: "06:00", city: "Brasília", state: "DF", venue: "Eixo Monumental", lat: -15.7942, lng: -47.8822, distances: [10, 21.1], type: "RUA", price: [120, 190], status: "ENCERRADAS", organizer: "Cerrado Run", description: "Percurso pelo Eixo Monumental com chegada em frente à Esplanada." },
   // Pendentes de moderação, para testar o painel admin na fase 3
   { name: "Corrida do Sol Nascente de Maceió", when: 45, time: "05:30", city: "Maceió", state: "AL", venue: "Orla de Ponta Verde", lat: -9.6658, lng: -35.7109, distances: [5, 10], type: "RUA", price: [85, 105], status: "ABERTAS", organizer: "Alagoas Run", description: "Percurso pela orla de Ponta Verde e Jatiúca, com piscinas naturais ao fundo.", moderation: "PENDENTE" },
   { name: "Desafio Serra Gaúcha", when: 90, time: "07:00", city: "Gramado", state: "RS", venue: "Lago Negro", lat: -29.3911, lng: -50.8763, distances: [10, 21.1], type: "TRAIL", price: [180, 260], status: "EM_BREVE", opensIn: 12, organizer: "Serra Trail", description: "Subidas e descidas entre araucárias e hortênsias, com chegada no centro de Gramado.", moderation: "PENDENTE" },
@@ -108,10 +115,31 @@ async function main() {
         organizerEmail: "contato@example.com",
         description: r.description,
         moderationStatus: r.moderation ?? "APROVADA",
+        source: r.moderation === "PENDENTE" ? "ORGANIZADOR" : "ADMIN",
+        couponCode: r.coupon?.[0],
+        couponLabel: r.coupon?.[1],
+        featured: r.featured !== undefined,
+        featuredOrder: r.featured,
       },
     });
   }
   console.log(`Seed concluído: ${races.length} corridas.`);
+
+  // Admin inicial: só cria se ainda não existir, para não sobrescrever uma senha trocada
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD;
+  if (email && password) {
+    const exists = await db.user.findUnique({ where: { email } });
+    if (!exists) {
+      await db.user.create({ data: { email, name: "Admin", role: "ADMIN", passwordHash: await hashPassword(password) } });
+      console.log(`Admin criado: ${email}`);
+    } else if (exists.role !== "ADMIN") {
+      await db.user.update({ where: { email }, data: { role: "ADMIN" } });
+      console.log(`Usuário promovido a admin: ${email}`);
+    }
+  } else {
+    console.log("ADMIN_EMAIL/ADMIN_PASSWORD não definidos: nenhum admin criado.");
+  }
 }
 
 main()
