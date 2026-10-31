@@ -23,6 +23,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // Credentials exige sessão JWT. O papel vai no token e é reconferido no banco nas ações de admin.
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
   pages: { signIn: "/entrar" },
+  // Vercel e o servidor local definem o host corretamente; sem isso, `next start` recusa a requisição
+  trustHost: true,
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
