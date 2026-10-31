@@ -1,69 +1,157 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Suspense } from "react";
+import {
+  getCitiesWithRaces,
+  getOpeningSoonRaces,
+  getUpcomingRaces,
+  getWeekendRaces,
+} from "@/domain/corridas/queries";
+import { RaceGrid } from "@/components/corridas/race-card";
+import { NearbyRaces } from "@/components/corridas/nearby-races";
+import { slogan } from "@/lib/site";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <>
+      <section className="relative overflow-hidden bg-asfalto-950 text-white">
+        <div className="faixa-largada absolute inset-x-0 bottom-0 h-2 opacity-90" aria-hidden />
+        <div className="absolute -top-20 -right-24 h-80 w-80 rounded-full bg-largada-500/20 blur-3xl" aria-hidden />
+        <div className="relative mx-auto max-w-6xl px-4 pt-10 pb-12 md:pt-16 md:pb-20">
+          <p className="mb-2 text-sm font-semibold tracking-widest text-pace-500 uppercase">Agenda de corridas de rua</p>
+          <h1 className="max-w-2xl font-display text-5xl leading-[0.9] font-extrabold italic uppercase md:text-7xl">
+            {slogan}
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+          <form action="/busca" className="mt-6 flex max-w-xl gap-2 rounded-2xl bg-white p-1.5">
+            <label htmlFor="q" className="sr-only">
+              Buscar corrida
+            </label>
+            <input
+              id="q"
+              name="q"
+              placeholder="Cidade, prova ou organizador"
+              className="min-w-0 flex-1 rounded-xl px-3 text-asfalto-950 outline-none"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <button className="rounded-xl bg-largada-500 px-5 py-3 font-semibold text-asfalto-950 hover:bg-largada-600">
+              Buscar
+            </button>
+          </form>
+          <div className="mt-4 flex flex-wrap gap-2 text-sm">
+            {[
+              ["5k", "/busca?dist=ate-5"],
+              ["10k", "/busca?dist=6-10"],
+              ["Meia maratona", "/busca?dist=11-21"],
+              ["Maratona", "/busca?dist=22-42"],
+              ["Trail", "/busca?tipo=TRAIL"],
+              ["Noturnas", "/busca?tipo=NOTURNA"],
+            ].map(([label, href]) => (
+              <Link key={href} href={href} className="rounded-full border border-white/20 px-3 py-1 hover:border-pace-500 hover:text-pace-500">
+                {label}
+              </Link>
+            ))}
+          </div>
         </div>
-      </main>
+      </section>
+
+      <div className="mx-auto max-w-6xl space-y-10 px-4 py-8">
+        <Section title="Largadas deste fim de semana" href="/busca">
+          <Suspense fallback={<GridSkeleton />}>
+            <WeekendRaces />
+          </Suspense>
+        </Section>
+
+        <Section title="Inscrições abrindo em breve">
+          <Suspense fallback={<GridSkeleton />}>
+            <OpeningSoon />
+          </Suspense>
+        </Section>
+
+        <Section title="Provas perto de você">
+          <NearbyRaces />
+        </Section>
+
+        <Section title="Corridas por cidade">
+          <Suspense fallback={<GridSkeleton />}>
+            <Cities />
+          </Suspense>
+        </Section>
+
+        <section className="overflow-hidden rounded-3xl bg-asfalto-950 p-6 text-white md:flex md:items-center md:justify-between md:p-10">
+          <div>
+            <h2 className="font-display text-3xl font-extrabold italic uppercase">Organiza uma corrida?</h2>
+            <p className="mt-1 text-asfalto-300">Cadastre sua prova de graça e alcance corredores da sua região.</p>
+          </div>
+          <Link
+            href="/organizadores"
+            className="mt-4 inline-block rounded-full bg-pace-500 px-6 py-3 font-semibold text-asfalto-950 hover:bg-pace-600 md:mt-0"
+          >
+            Cadastrar corrida
+          </Link>
+        </section>
+      </div>
+    </>
+  );
+}
+
+function Section({ title, href, children }: { title: string; href?: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <div className="mb-3 flex items-end justify-between">
+        <h2 className="font-display text-2xl font-bold uppercase md:text-3xl">{title}</h2>
+        {href && (
+          <Link href={href} className="text-sm font-semibold text-largada-600 hover:underline">
+            Ver todas
+          </Link>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+async function WeekendRaces() {
+  const weekend = await getWeekendRaces();
+  if (weekend.length) return <RaceGrid races={weekend} />;
+  // Sem provas no fim de semana: mostra as próximas para a seção não ficar vazia
+  const next = await getUpcomingRaces(4);
+  return (
+    <>
+      <p className="mb-3 text-sm text-asfalto-500">Nenhuma largada neste fim de semana. Veja as próximas:</p>
+      <RaceGrid races={next} />
+    </>
+  );
+}
+
+async function OpeningSoon() {
+  const races = await getOpeningSoonRaces();
+  if (!races.length) return <p className="text-asfalto-500">Nenhuma inscrição prevista para abrir em breve.</p>;
+  return <RaceGrid races={races} />;
+}
+
+async function Cities() {
+  const cities = await getCitiesWithRaces();
+  return (
+    <ul className="flex flex-wrap gap-2">
+      {cities.slice(0, 24).map((c) => (
+        <li key={c.citySlug}>
+          <Link
+            href={`/corridas/${c.citySlug}`}
+            className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm ring-1 ring-asfalto-100 hover:ring-largada-500"
+          >
+            {c.city}/{c.state}
+            <span className="rounded-full bg-asfalto-100 px-1.5 text-xs font-semibold">{c.count}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function GridSkeleton() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={i} className="h-32 animate-pulse rounded-2xl bg-asfalto-100 sm:h-64" />
+      ))}
     </div>
   );
 }
