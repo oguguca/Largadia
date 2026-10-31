@@ -59,12 +59,59 @@ model Race {
   lng                 Float?
   moderationStatus    ModerationStatus   @default(PENDENTE)
   moderationNote      String?
+  /// De onde veio o cadastro
+  source              RaceSource         @default(ORGANIZADOR)
+  /// Página de origem usada no cadastro rápido (ex.: página da prova na plataforma)
+  sourceUrl           String?
+  /// Cupom de desconto negociado com o organizador
+  couponCode          String?
+  /// Texto curto do desconto, ex.: "10% off"
+  couponLabel         String?
+  /// Destaque na página inicial; menor `featuredOrder` aparece primeiro
+  featured            Boolean            @default(false)
+  featuredOrder       Int?
+  clicks              RaceClick[]
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
   @@index([moderationStatus, startsAt])
   @@index([citySlug])
   @@index([state])
+  @@index([featured])
+}
+
+enum RaceSource {
+  ORGANIZADOR
+  ADMIN
+}
+
+/// Clique no botão de inscrição, para medir o tráfego enviado a cada plataforma
+model RaceClick {
+  id        String   @id @default(cuid())
+  raceId    String
+  race      Race     @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  /// Domínio de destino (ticketsports.com.br, sympla.com.br…)
+  platform  String
+  createdAt DateTime @default(now())
+
+  @@index([raceId, createdAt])
+  @@index([platform, createdAt])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  /// scrypt: "salt:hash" em hex
+  passwordHash String?
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 /// Janela fixa de rate limit para formulários públicos (funciona em serverless sem Redis)
