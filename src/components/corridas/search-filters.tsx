@@ -82,6 +82,11 @@ export function SearchFiltersForm({ filters }: { filters: SearchFilters }) {
         </select>
       </label>
 
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="realizadas" value="1" defaultChecked={filters.realizadas} />
+        Incluir provas já realizadas
+      </label>
+
       <div className="flex gap-2">
         <button className="flex-1 rounded-lg bg-largada-500 px-4 py-2.5 font-semibold text-asfalto-950 hover:bg-largada-600">
           Aplicar filtros

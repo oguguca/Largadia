@@ -27,11 +27,18 @@ const cardSelect = {
   imageUrl: true,
   lat: true,
   lng: true,
+  couponLabel: true,
 } satisfies Prisma.RaceSelect;
 
 export type RaceCard = Prisma.RaceGetPayload<{ select: typeof cardSelect }> & {
   distanceFromUserKm?: number;
+  /** A prova já aconteceu (calculado na consulta, para não depender do relógio na renderização) */
+  isPast?: boolean;
 };
+
+function markPast<T extends { startsAt: Date }>(races: T[], now: Date): (T & { isPast: boolean })[] {
+  return races.map((r) => ({ ...r, isPast: r.startsAt < now }));
+}
 
 const publicFuture = (now: Date): Prisma.RaceWhereInput => ({
   moderationStatus: "APROVADA",
@@ -64,6 +71,33 @@ export async function getOpeningSoonRaces(): Promise<RaceCard[]> {
   });
 }
 
+export async function getFeaturedRaces(): Promise<RaceCard[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(RACES_TAG);
+  return db.race.findMany({
+    where: { ...publicFuture(new Date()), featured: true },
+    orderBy: [{ featuredOrder: { sort: "asc", nulls: "last" } }, { startsAt: "asc" }],
+    take: 8,
+    select: cardSelect,
+  });
+}
+
+/** Provas de um mês (horário de Brasília), incluindo as que já aconteceram. */
+export async function getMonthRaces(year: number, month: number): Promise<RaceCard[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(RACES_TAG);
+  const start = new Date(Date.UTC(year, month - 1, 1, 3));
+  const end = new Date(Date.UTC(year, month, 1, 3));
+  const races = await db.race.findMany({
+    where: { moderationStatus: "APROVADA", startsAt: { gte: start, lt: end } },
+    orderBy: { startsAt: "asc" },
+    select: cardSelect,
+  });
+  return markPast(races, new Date());
+}
+
 export async function getUpcomingRaces(take = 8): Promise<RaceCard[]> {
   "use cache";
   cacheLife("hours");
@@ -80,7 +114,8 @@ export async function getRaceBySlug(slug: string) {
   "use cache";
   cacheLife("hours");
   cacheTag(RACES_TAG, `corrida:${slug}`);
-  return db.race.findFirst({ where: { slug, moderationStatus: "APROVADA" } });
+  const race = await db.race.findFirst({ where: { slug, moderationStatus: "APROVADA" } });
+  return race ? { ...race, isPast: race.startsAt < new Date() } : null;
 }
 
 /** Cidades com corridas futuras, para a página da cidade e o sitemap. */
@@ -121,7 +156,7 @@ export async function getCitiesWithRaces() {
 
 export async function getNearbyRaces(lat: number, lng: number, radiusKm = 100, take = 8): Promise<RaceCard[]> {
   const result = await searchRaces(
-    { q: undefined, cidade: undefined, lat, lng, raio: radiusKm, pagina: 1, view: "lista" },
+    { q: undefined, cidade: undefined, lat, lng, raio: radiusKm, realizadas: false, pagina: 1, view: "lista" },
     new Date(),
   );
   return result.items.slice(0, take);
@@ -136,7 +171,9 @@ const MAX_CANDIDATES = 1000;
  * Com volume grande, migrar raio para PostGIS e distância para SQL com unnest.
  */
 export async function searchRaces(filters: SearchFilters, now: Date) {
-  const where: Prisma.RaceWhereInput = { ...publicFuture(now) };
+  const where: Prisma.RaceWhereInput = filters.realizadas
+    ? { moderationStatus: "APROVADA" }
+    : { ...publicFuture(now) };
   const and: Prisma.RaceWhereInput[] = [];
 
   if (filters.q) {
@@ -156,8 +193,11 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
   const from = filters.de ? parseDateBrt(filters.de) : null;
   const to = filters.ate ? parseDateBrt(filters.ate) : null;
   if (from || to) {
+    // Sem "realizadas", o início nunca fica antes de agora
+    const floor = filters.realizadas ? undefined : now;
+    const gte = from && (!floor || from > floor) ? startOfDayBrt(from) : floor;
     where.startsAt = {
-      gte: from && from > now ? startOfDayBrt(from) : now,
+      ...(gte ? { gte } : {}),
       ...(to ? { lt: addDays(startOfDayBrt(to), 1) } : {}),
     };
   }
@@ -171,12 +211,13 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
 
   const candidates = await db.race.findMany({
     where,
-    orderBy: { startsAt: "asc" },
+    // Com realizadas, as mais recentes primeiro; sem, as próximas primeiro
+    orderBy: { startsAt: filters.realizadas ? "desc" : "asc" },
     take: MAX_CANDIDATES,
     select: cardSelect,
   });
 
-  let items: RaceCard[] = candidates;
+  let items: RaceCard[] = markPast(candidates, now);
   if (filters.dist) items = items.filter((r) => matchesDistanceBucket(r.distancesKm, filters.dist!));
   if (hasGeo) {
     items = items

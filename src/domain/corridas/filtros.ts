@@ -29,6 +29,12 @@ export const searchFiltersSchema = z.object({
   /** Preço máximo em reais */
   preco: optionalNumber(0, 10_000),
   tipo: z.enum(["RUA", "TRAIL", "NOTURNA", "TEMATICA", "SOLIDARIA", "KIDS"]).optional().catch(undefined),
+  /** Inclui provas que já aconteceram */
+  realizadas: z
+    .enum(["1"])
+    .optional()
+    .catch(undefined)
+    .transform((v) => v === "1"),
   pagina: z.coerce.number().int().min(1).max(500).catch(1).default(1),
   view: z.enum(["lista", "mapa"]).catch("lista").default("lista"),
 });
@@ -53,7 +59,11 @@ export function toQueryString(filters: Partial<SearchFilters>, overrides: Partia
   const merged = { ...filters, ...overrides };
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(merged)) {
-    if (v === undefined || v === null || v === "") continue;
+    if (v === undefined || v === null || v === "" || v === false) continue;
+    if (v === true) {
+      params.set(k, "1");
+      continue;
+    }
     if (k === "pagina" && v === 1) continue;
     if (k === "view" && v === "lista") continue;
     params.set(k, String(v));

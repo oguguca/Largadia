@@ -7,7 +7,8 @@ import { raceTypeLabels } from "@/config/corridas";
 import { formatDateLong, formatDistance, formatPriceRange, formatTime } from "@/lib/format";
 import { siteUrl } from "@/lib/site";
 import { RaceVisual } from "@/components/corridas/race-visual";
-import { StatusBadge } from "@/components/corridas/status-badge";
+import { PastBadge, StatusBadge } from "@/components/corridas/status-badge";
+import { googleCalendarUrl, platformName } from "@/domain/corridas/links";
 import { RaceMapLazy } from "@/components/corridas/race-map-lazy";
 import { raceJsonLd } from "./json-ld";
 
@@ -39,7 +40,8 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
   const race = await getRaceBySlug(slug);
   if (!race) notFound();
 
-  const canRegister = race.registrationStatus === "ABERTAS";
+  const canRegister = !race.isPast && race.registrationStatus === "ABERTAS";
+  const platform = platformName(race.registrationUrl);
 
   return (
     <article className="pb-24 md:pb-10">
@@ -65,6 +67,21 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
 
       <div className="mx-auto grid max-w-4xl gap-6 px-4 py-6 md:grid-cols-[1fr_18rem]">
         <div className="space-y-6">
+          {race.isPast && (
+            <p className="rounded-xl bg-asfalto-100 p-3 text-sm text-asfalto-700">
+              Esta prova já aconteceu. Correu? Em breve você poderá avaliar e enviar sua comprovação.
+            </p>
+          )}
+          {!race.isPast && (
+            <div className="flex gap-2 text-sm md:hidden">
+              <a href={googleCalendarUrl(race, siteUrl)} target="_blank" rel="noopener noreferrer" className="flex-1 rounded-lg bg-white px-2 py-2 text-center ring-1 ring-asfalto-300">
+                + Google Agenda
+              </a>
+              <a href={`/corrida/${race.slug}/agenda.ics`} className="flex-1 rounded-lg bg-white px-2 py-2 text-center ring-1 ring-asfalto-300">
+                Baixar .ics
+              </a>
+            </div>
+          )}
           <dl className="grid grid-cols-2 gap-3 rounded-2xl bg-white p-4 ring-1 ring-asfalto-100 sm:grid-cols-3">
             <Info label="Data">{formatDateLong(race.startsAt)}</Info>
             <Info label="Largada">{formatTime(race.startsAt)}</Info>
@@ -113,32 +130,42 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
         </div>
 
         {/* No celular, o CTA fica fixo acima da barra de navegação */}
-        <aside className="fixed inset-x-0 bottom-14 z-30 border-t border-asfalto-100 bg-white p-3 md:static md:self-start md:rounded-2xl md:border-0 md:p-4 md:ring-1 md:ring-asfalto-100">
-          <div className="mb-2 hidden md:block">
-            <StatusBadge status={race.registrationStatus} />
+        <aside className="fixed inset-x-0 bottom-14 z-30 space-y-2 border-t border-asfalto-100 bg-white p-3 md:static md:self-start md:rounded-2xl md:border-0 md:p-4 md:ring-1 md:ring-asfalto-100">
+          <div className="hidden md:block">
+            {race.isPast ? <PastBadge /> : <StatusBadge status={race.registrationStatus} />}
           </div>
-          {canRegister ? (
-            <a
-              href={race.registrationUrl}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              className="block rounded-xl bg-largada-500 px-4 py-3 text-center font-semibold text-asfalto-950 hover:bg-largada-600"
-            >
-              Ir para inscrição ↗
-            </a>
-          ) : (
-            <a
-              href={race.registrationUrl}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              className="block rounded-xl bg-asfalto-100 px-4 py-3 text-center font-semibold text-asfalto-700"
-            >
-              Ver site oficial ↗
-            </a>
+          {race.couponCode && !race.isPast && (
+            <div className="rounded-xl border border-dashed border-emerald-600 bg-emerald-50 p-2 text-center text-sm">
+              Cupom Largadia{race.couponLabel ? ` (${race.couponLabel})` : ""}:{" "}
+              <strong className="font-mono tracking-wider select-all">{race.couponCode}</strong>
+            </div>
           )}
-          <p className="mt-2 hidden text-xs text-asfalto-500 md:block">
-            A inscrição é feita no site oficial do organizador.
-          </p>
+          <a
+            href={`/ir/${race.slug}`}
+            target="_blank"
+            rel="noopener nofollow"
+            className={`block rounded-xl px-4 py-3 text-center font-semibold ${
+              canRegister ? "bg-largada-500 text-asfalto-950 hover:bg-largada-600" : "bg-asfalto-100 text-asfalto-700"
+            }`}
+          >
+            {canRegister ? (platform ? `Inscreva-se na ${platform} ↗` : "Ir para inscrição ↗") : "Ver site oficial ↗"}
+          </a>
+          {!race.isPast && (
+            <div className="hidden grid-cols-2 gap-2 text-sm md:grid">
+              <a
+                href={googleCalendarUrl(race, siteUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg px-2 py-2 text-center ring-1 ring-asfalto-300 hover:bg-asfalto-50"
+              >
+                Google Agenda
+              </a>
+              <a href={`/corrida/${race.slug}/agenda.ics`} className="rounded-lg px-2 py-2 text-center ring-1 ring-asfalto-300 hover:bg-asfalto-50">
+                Baixar .ics
+              </a>
+            </div>
+          )}
+          <p className="hidden text-xs text-asfalto-500 md:block">A inscrição é feita no site oficial do organizador.</p>
         </aside>
       </div>
     </article>

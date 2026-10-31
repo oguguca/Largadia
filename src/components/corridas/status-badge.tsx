@@ -15,3 +15,9 @@ export function StatusBadge({ status }: { status: RegistrationStatus }) {
     </span>
   );
 }
+
+export function PastBadge() {
+  return (
+    <span className="inline-block rounded-full bg-asfalto-700 px-2.5 py-0.5 text-xs font-semibold text-white">Realizada</span>
+  );
+}

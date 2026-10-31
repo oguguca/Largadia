@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import {
   getCitiesWithRaces,
+  getFeaturedRaces,
   getOpeningSoonRaces,
   getUpcomingRaces,
   getWeekendRaces,
@@ -9,6 +10,8 @@ import {
 import { RaceGrid } from "@/components/corridas/race-card";
 import { NearbyRaces } from "@/components/corridas/nearby-races";
 import { slogan } from "@/lib/site";
+import { cacheLife } from "next/cache";
+import { MONTH_LABELS, monthPath } from "@/lib/months";
 
 export default function Home() {
   return (
@@ -53,6 +56,10 @@ export default function Home() {
       </section>
 
       <div className="mx-auto max-w-6xl space-y-10 px-4 py-8">
+        <Suspense>
+          <Featured />
+        </Suspense>
+
         <Section title="Largadas deste fim de semana" href="/busca">
           <Suspense fallback={<GridSkeleton />}>
             <WeekendRaces />
@@ -67,6 +74,10 @@ export default function Home() {
 
         <Section title="Provas perto de você">
           <NearbyRaces />
+        </Section>
+
+        <Section title="Calendário" href="/calendario">
+          <MonthLinks />
         </Section>
 
         <Section title="Corridas por cidade">
@@ -108,6 +119,16 @@ function Section({ title, href, children }: { title: string; href?: string; chil
   );
 }
 
+async function Featured() {
+  const races = await getFeaturedRaces();
+  if (!races.length) return null;
+  return (
+    <Section title="Em destaque">
+      <RaceGrid races={races} />
+    </Section>
+  );
+}
+
 async function WeekendRaces() {
   const weekend = await getWeekendRaces();
   if (weekend.length) return <RaceGrid races={weekend} />;
@@ -139,6 +160,31 @@ async function Cities() {
           >
             {c.city}/{c.state}
             <span className="rounded-full bg-asfalto-100 px-1.5 text-xs font-semibold">{c.count}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Atalhos para os próximos 6 meses. Datas fixas no build são aceitáveis: a página revalida a cada hora. */
+async function MonthLinks() {
+  "use cache";
+  cacheLife("hours");
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
+    return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 };
+  });
+  return (
+    <ul className="flex flex-wrap gap-2">
+      {months.map((m) => (
+        <li key={`${m.year}-${m.month}`}>
+          <Link
+            href={monthPath(m.year, m.month)}
+            className="inline-block rounded-full bg-white px-3 py-1.5 text-sm capitalize ring-1 ring-asfalto-100 hover:ring-largada-500"
+          >
+            {MONTH_LABELS[m.month - 1]} {m.year}
           </Link>
         </li>
       ))}
