@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Largadia
 
-## Getting Started
+> Sua próxima largada começa aqui.
 
-First, run the development server:
+Agenda de corridas de rua do Brasil, com assinatura Largadia+, Clube Largadia (pontos) e sorteios.
+
+## Stack
+
+- Next.js 16 (App Router, Cache Components) + TypeScript
+- Tailwind CSS v4
+- PostgreSQL (Neon) + Prisma 7 com `@prisma/adapter-pg`
+- Leaflet + OpenStreetMap para mapas
+- Zod para validação, Vitest para testes
+
+## Rodando localmente
+
+Requisitos: Node.js 20.9+.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install                 # também gera o Prisma Client
+cp .env.example .env        # preencha DATABASE_URL e DIRECT_URL (Neon)
+npm run db:migrate          # aplica as migrations
+npm run db:seed             # carrega corridas de exemplo (datas relativas a hoje)
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Outros comandos:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Comando             | O que faz                          |
+| ------------------- | ---------------------------------- |
+| `npm test`          | Testes automatizados (Vitest)      |
+| `npm run typecheck` | Checagem de tipos                  |
+| `npm run lint`      | ESLint                             |
+| `npm run build`     | Build de produção                  |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Estrutura
 
-## Learn More
+```
+prisma/              schema, migrations e seed
+src/app/             rotas (App Router)
+src/components/      componentes de UI
+src/config/          valores ajustáveis (flags, pontos, sorteios, filtros)
+src/domain/          regras de negócio (consultas, validações)
+src/lib/             infraestrutura (banco, datas, geo, rate limit)
+tests/               testes
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Flags
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Em `src/config/flags.ts`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `sorteiosAtivos` (padrão `false`): sorteios ligados a assinatura exigem autorização prévia da SPA/MF.
+- `pontosSomenteAssinantes` (padrão `true`).
