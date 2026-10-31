@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RaceType {
+  RUA
+  TRAIL
+  NOTURNA
+  TEMATICA
+  SOLIDARIA
+  KIDS
+}
+
+enum RegistrationStatus {
+  ABERTAS
+  EM_BREVE
+  ESGOTADAS
+  ENCERRADAS
+}
+
+enum ModerationStatus {
+  PENDENTE
+  APROVADA
+  RECUSADA
+}
+
+model Race {
+  id                  String             @id @default(cuid())
+  slug                String             @unique
+  name                String
+  /// Data e horário da largada (instante UTC; exibido em America/Sao_Paulo)
+  startsAt            DateTime
+  city                String
+  citySlug            String
+  /// UF com 2 letras
+  state               String             @db.Char(2)
+  venue               String
+  /// Distâncias oferecidas, em km (ex.: [5, 10, 21.1])
+  distancesKm         Float[]
+  type                RaceType
+  /// Faixa de preço em centavos (0 = gratuita)
+  priceMinCents       Int
+  priceMaxCents       Int
+  registrationUrl     String
+  registrationStatus  RegistrationStatus
+  /// Quando as inscrições abrem (usado em "Inscrições abrindo em breve")
+  registrationOpensAt DateTime?
+  organizer           String
+  organizerEmail      String?
+  description         String             @db.Text
+  imageUrl            String?
+  /// Coordenadas podem faltar em envios de organizadores até o admin revisar
+  lat                 Float?
+  lng                 Float?
+  moderationStatus    ModerationStatus   @default(PENDENTE)
+  moderationNote      String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([moderationStatus, startsAt])
+  @@index([citySlug])
+  @@index([state])
+}
+
+/// Janela fixa de rate limit para formulários públicos (funciona em serverless sem Redis)
+model RateLimitBucket {
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@id([key, windowStart])
+}
