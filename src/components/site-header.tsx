@@ -3,6 +3,7 @@ import { Logo } from "./logo";
 
 const links = [
   { href: "/busca", label: "Corridas" },
+  { href: "/calendario", label: "Calendário" },
   { href: "/mapa", label: "Mapa" },
   { href: "/sorteios", label: "Sorteios" },
   { href: "/organizadores", label: "Cadastrar corrida" },
