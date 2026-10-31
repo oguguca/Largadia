@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --color-asfalto-950: #0a1220;
+  --color-asfalto-900: #111c2e;
+  --color-asfalto-800: #1b2a42;
+  --color-asfalto-700: #2a3d5c;
+  --color-asfalto-500: #5b6b85;
+  --color-asfalto-300: #a9b4c6;
+  --color-asfalto-100: #e8ecf2;
+  --color-asfalto-50: #f5f7fa;
+
+  --color-largada-700: #c2410c;
+  --color-largada-600: #ea580c;
+  --color-largada-500: #ff6b1a;
+  --color-largada-100: #ffeadb;
+
+  --color-pace-500: #c6f432;
+  --color-pace-600: #a3d117;
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-barlow);
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-asfalto-50);
+  color: var(--color-asfalto-900);
+}
+
+/* Faixa diagonal usada nos destaques, inspirada em linha de largada */
+.faixa-largada {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-largada-500) 0 10px,
+    var(--color-asfalto-950) 10px 20px
+  );
+}
+
+.leaflet-container {
+  font-family: var(--font-inter);
+}
