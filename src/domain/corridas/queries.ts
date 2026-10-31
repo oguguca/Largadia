@@ -172,7 +172,7 @@ const MAX_CANDIDATES = 1000;
  */
 export async function searchRaces(filters: SearchFilters, now: Date) {
   const where: Prisma.RaceWhereInput = filters.realizadas
-    ? { moderationStatus: "APROVADA" }
+    ? { moderationStatus: "APROVADA", startsAt: { lt: now } }
     : { ...publicFuture(now) };
   const and: Prisma.RaceWhereInput[] = [];
 
@@ -193,13 +193,11 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
   const from = filters.de ? parseDateBrt(filters.de) : null;
   const to = filters.ate ? parseDateBrt(filters.ate) : null;
   if (from || to) {
-    // Sem "realizadas", o início nunca fica antes de agora
-    const floor = filters.realizadas ? undefined : now;
-    const gte = from && (!floor || from > floor) ? startOfDayBrt(from) : floor;
-    where.startsAt = {
-      ...(gte ? { gte } : {}),
-      ...(to ? { lt: addDays(startOfDayBrt(to), 1) } : {}),
-    };
+    // Próximas: começa no máximo agora. Realizadas: termina no máximo agora.
+    const gte = filters.realizadas ? (from ? startOfDayBrt(from) : undefined) : from && from > now ? startOfDayBrt(from) : now;
+    const toEnd = to ? addDays(startOfDayBrt(to), 1) : undefined;
+    const lt = filters.realizadas ? (toEnd && toEnd < now ? toEnd : now) : toEnd;
+    where.startsAt = { ...(gte ? { gte } : {}), ...(lt ? { lt } : {}) };
   }
 
   const hasGeo = filters.lat !== undefined && filters.lng !== undefined;
@@ -211,7 +209,7 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
 
   const candidates = await db.race.findMany({
     where,
-    // Com realizadas, as mais recentes primeiro; sem, as próximas primeiro
+    // Realizadas: as mais recentes primeiro; próximas: as mais próximas primeiro
     orderBy: { startsAt: filters.realizadas ? "desc" : "asc" },
     take: MAX_CANDIDATES,
     select: cardSelect,

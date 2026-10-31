@@ -84,7 +84,7 @@ export function SearchFiltersForm({ filters }: { filters: SearchFilters }) {
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="realizadas" value="1" defaultChecked={filters.realizadas} />
-        Incluir provas já realizadas
+        Mostrar só provas já realizadas
       </label>
 
       <div className="flex gap-2">

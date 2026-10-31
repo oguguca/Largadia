@@ -29,7 +29,7 @@ export const searchFiltersSchema = z.object({
   /** Preço máximo em reais */
   preco: optionalNumber(0, 10_000),
   tipo: z.enum(["RUA", "TRAIL", "NOTURNA", "TEMATICA", "SOLIDARIA", "KIDS"]).optional().catch(undefined),
-  /** Inclui provas que já aconteceram */
+  /** Mostra só as provas que já aconteceram, das mais recentes para as mais antigas */
   realizadas: z
     .enum(["1"])
     .optional()
