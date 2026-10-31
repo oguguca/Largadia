@@ -45,6 +45,19 @@ src/lib/             infraestrutura (banco, datas, geo, rate limit)
 tests/               testes
 ```
 
+## Admin
+
+- Defina `ADMIN_EMAIL` e `ADMIN_PASSWORD` no `.env` e rode `npm run db:seed`: o admin é criado se ainda não existir.
+- Acesse `/admin` (login em `/entrar`).
+- **Cadastro rápido:** em `/admin/corridas/nova`, cole o link da prova na plataforma de inscrição; os campos são pré-preenchidos para revisão.
+- Corridas enviadas por organizadores chegam como pendentes em `/admin/corridas?status=PENDENTE`.
+
+## Parcerias com plataformas
+
+- O botão de inscrição passa por `/ir/[slug]`, que conta o clique e redireciona com os parâmetros da plataforma.
+- Parâmetros por domínio em `src/config/parceiros.ts`. Troque pelos códigos combinados quando fechar uma parceria.
+- O painel `/admin` mostra cliques por plataforma e por prova nos últimos 30 dias.
+
 ## Flags
 
 Em `src/config/flags.ts`:
