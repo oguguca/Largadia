@@ -10,7 +10,6 @@ import {
   getWeekendRaces,
 } from "@/domain/corridas/queries";
 import { RaceGrid } from "@/components/corridas/race-card";
-import { NearbyRaces } from "@/components/corridas/nearby-races";
 import { HeroTrack } from "@/components/home/hero-track";
 import { slogan } from "@/lib/site";
 import { MONTH_LABELS, monthPath, shiftMonth } from "@/lib/months";
@@ -90,10 +89,6 @@ export default function Home() {
         <Suspense>
           <States />
         </Suspense>
-
-        <Section title="Provas perto de você">
-          <NearbyRaces />
-        </Section>
 
         <Section title="Largadas deste fim de semana" href="/busca">
           <Suspense fallback={<GridSkeleton />}>
