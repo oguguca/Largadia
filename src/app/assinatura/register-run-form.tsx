@@ -56,6 +56,10 @@ export function RegisterRunForm({ races, today, earliest }: { races: RunOption[]
           ))}
           <option value={OTHER_RACE}>Minha prova não está na lista</option>
         </select>
+        <span className="block text-xs text-asfalto-500">
+          A lista traz as provas do calendário que já aconteceram. Correu uma que não está aqui? Escolha &quot;Minha prova não está na
+          lista&quot; e preencha nome, data e cidade.
+        </span>
         <FieldError msg={errors.raceId?.[0]} />
       </label>
 
