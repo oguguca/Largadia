@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { LoginForm } from "./login-form";
 
@@ -11,6 +12,12 @@ export default function EntrarPage(props: PageProps<"/entrar">) {
       <Suspense fallback={<LoginForm />}>
         <Form searchParams={props.searchParams} />
       </Suspense>
+      <p className="mt-4 text-center text-sm text-asfalto-500">
+        Ainda não tem conta?{" "}
+        <Link href="/cadastro" className="font-semibold text-largada-600 hover:underline">
+          Criar conta
+        </Link>
+      </p>
     </div>
   );
 }
