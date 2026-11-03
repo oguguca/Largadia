@@ -16,7 +16,13 @@ export async function participar(raffleId: string): Promise<EntryState> {
   const user = await requireUser("/assinatura");
   const raffle = await db.raffle.findUnique({ where: { id: z.string().cuid().parse(raffleId) } });
   if (!raffle) return { error: "Sorteio não encontrado." };
-  const blocked = entryBlockReason(raffle, { premium: isPremium(user) });
+  // Último prêmio ganho, para a carência de quem ganhou recentemente
+  const lastWin = await db.raffle.findFirst({
+    where: { winnerId: user.id, drawnAt: { not: null } },
+    orderBy: { drawnAt: "desc" },
+    select: { drawnAt: true },
+  });
+  const blocked = entryBlockReason(raffle, { premium: isPremium(user), lastWinAt: lastWin?.drawnAt ?? null });
   if (blocked) return { error: blocked };
   // upsert: clicar duas vezes não cria participação duplicada
   await db.raffleEntry.upsert({

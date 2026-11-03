@@ -13,6 +13,7 @@ const nav = [
   { href: "/admin/corridas/nova", label: "Nova corrida", icon: "M12 5v14M5 12h14" },
   { href: "/admin/corridas/importar", label: "Importar em lote", icon: "M12 4v11m0 0l-4-4m4 4l4-4M5 20h14" },
   { href: "/admin/pontos", label: "Pontos", icon: "M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" },
+  { href: "/admin/assinantes", label: "Assinantes", icon: "M16 19v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1M9 10a3 3 0 100-6 3 3 0 000 6zM22 19v-1a4 4 0 00-3-3.9M16 4.1a3 3 0 010 5.8" },
   { href: "/admin/sorteios", label: "Sorteios", icon: "M12 8v13M4 12h16M5 8h14v4H5zM12 8c-2-4-6-4-6-1s6 1 6 1zm0 0c2-4 6-4 6-1s-6 1-6 1z" },
 ];
 

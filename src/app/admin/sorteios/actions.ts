@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { isPremium } from "@/domain/assinatura/status";
 import { saveUploadedImage } from "@/domain/uploads/imagem";
+import { sorteios } from "@/config/sorteios";
 import { drawBlockReason, pickWinner, raffleSchema } from "@/domain/sorteios/sorteio";
 
 export type RaffleFormState = { errors?: Record<string, string[]>; values?: Record<string, string> } | null;
@@ -63,11 +64,19 @@ export async function drawRaffle(id: string) {
     },
   });
   if (!raffle) redirect("/admin/sorteios");
-  // O prêmio só vai para quem está com o Premium ativo na hora do sorteio, em qualquer sorteio
-  const eligible = raffle.entries.filter((e) => isPremium(e.user));
+  // O prêmio só vai para quem está com o Premium ativo na hora do sorteio e fora da carência de ganhador
+  const recentWinners = new Set(
+    (
+      await db.raffle.findMany({
+        where: { drawnAt: { gt: new Date(Date.now() - sorteios.carenciaGanhadorDias * 86_400_000) }, winnerId: { not: null } },
+        select: { winnerId: true },
+      })
+    ).map((r) => r.winnerId),
+  );
+  const eligible = raffle.entries.filter((e) => isPremium(e.user) && !recentWinners.has(e.userId));
   const blocked =
     drawBlockReason(raffle, raffle.entries.length) ??
-    (eligible.length ? null : "Nenhum participante está com o Premium ativo agora.");
+    (eligible.length ? null : "Nenhum participante pode ganhar agora (Premium ativo e fora da carência de quem ganhou recentemente).");
   if (blocked) redirect(`/admin/sorteios/${id}?erro=${encodeURIComponent(blocked)}`);
 
   const winner = pickWinner(eligible, randomInt);

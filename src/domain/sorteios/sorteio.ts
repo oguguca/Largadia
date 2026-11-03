@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parseDateBrt } from "@/lib/dates";
 import type { RaffleStatus } from "@/generated/prisma/enums";
 import { isPremium, PIX_STATUS } from "@/domain/assinatura/status";
+import { sorteios } from "@/config/sorteios";
 
 export const raffleStatusLabels: Record<RaffleStatus, string> = {
   RASCUNHO: "Rascunho",
@@ -66,12 +67,31 @@ export function deadlinePassed(entriesCloseAt: Date | null, now = new Date()): b
 }
 
 /** Pode participar agora? Devolve o motivo quando não pode, para mostrar ao corredor. */
-export function entryBlockReason(raffle: RaffleRules, user: { premium: boolean } | null, now = new Date()): string | null {
+export function entryBlockReason(
+  raffle: RaffleRules,
+  user: { premium: boolean; lastWinAt?: Date | null } | null,
+  now = new Date(),
+): string | null {
   if (raffle.status !== "ABERTO") return "Este sorteio não está aceitando participações.";
   if (deadlinePassed(raffle.entriesCloseAt, now)) return "As participações já foram encerradas.";
   if (!user) return "Entre na sua conta para participar.";
   if (raffle.premiumOnly && !user.premium) return "Sorteio exclusivo para assinantes Premium.";
+  const until = cooldownUntil(user.lastWinAt ?? null);
+  if (until && until > now) {
+    return `Você ganhou um sorteio recentemente: pode participar de novo a partir de ${until.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`;
+  }
   return null;
+}
+
+/** Até quando quem ganhou fica sem poder participar de outro sorteio (null = nunca ganhou). */
+export function cooldownUntil(lastWinAt: Date | null): Date | null {
+  return lastWinAt ? new Date(lastWinAt.getTime() + sorteios.carenciaGanhadorDias * 86_400_000) : null;
+}
+
+/** Dias inteiros que faltam para voltar a participar (0 = já pode). */
+export function cooldownDaysLeft(lastWinAt: Date | null, now = new Date()): number {
+  const until = cooldownUntil(lastWinAt);
+  return until && until > now ? Math.ceil((until.getTime() - now.getTime()) / 86_400_000) : 0;
 }
 
 /** Só sorteia depois do fim das participações e com pelo menos um participante. */
