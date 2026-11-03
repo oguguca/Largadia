@@ -47,8 +47,10 @@ const price = (PREMIUM_PRICE_CENTS / 100).toLocaleString("pt-BR", {
 
 const perks = [
   {
-    title: "Ranking com prêmio",
-    text: `Cada prova concluída soma pontos. A cada ${temporada.meses} meses, o 1º lugar do ranking ganha ${temporada.premio}.`,
+    title: temporada.premio ? "Ranking com prêmio" : "Ranking da temporada",
+    text: temporada.premio
+      ? `Cada prova concluída soma pontos. A cada ${temporada.meses} meses, o 1º lugar do ranking ganha ${temporada.premio}.`
+      : `Cada prova concluída soma pontos num ranking que recomeça a cada ${temporada.meses} meses.`,
   },
   {
     title: "Sorteios exclusivos",
@@ -243,10 +245,21 @@ async function MemberArea({ user }: { user: Member }) {
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-asfalto-300">Prêmio do 1º lugar</dt>
-            <dd className="mt-2 font-display text-xl leading-tight font-bold whitespace-nowrap text-amber-400">
-              👑 Tênis de corrida
-            </dd>
+            {temporada.premio ? (
+              <>
+                <dt className="text-sm text-asfalto-300">Prêmio do 1º lugar</dt>
+                <dd className="mt-2 font-display text-xl leading-tight font-bold text-amber-400 first-letter:uppercase">
+                  👑 {temporada.premio.replace(/^(um|uma) /, "")}
+                </dd>
+              </>
+            ) : (
+              <>
+                <dt className="text-sm text-asfalto-300">Provas aprovadas</dt>
+                <dd className="mt-1 font-display text-5xl leading-none font-extrabold tabular-nums">
+                  {ranking.viewer?.races ?? 0}
+                </dd>
+              </>
+            )}
           </div>
         </dl>
       </HeroShell>
@@ -510,7 +523,7 @@ const steps = [
   },
   {
     title: "Suba no ranking",
-    text: `${pontos.porProva} pontos por prova + ${pontos.porKm} por km. O 1º da temporada leva o prêmio.`,
+    text: `${pontos.porProva} pontos por prova + ${pontos.porKm} por km.${temporada.premio ? " O 1º da temporada leva o prêmio." : ""}`,
   },
 ];
 
@@ -548,9 +561,9 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
               <span className="block text-largada-500">Ganhe</span>
             </h1>
             <p className="mt-6 max-w-md text-lg text-asfalto-300">
-              Cada prova que você corre vira pontos. Quem terminar a temporada
-              em 1º leva {temporada.premio}, e os assinantes concorrem aos
-              sorteios de prêmios.
+              Cada prova que você corre vira pontos no ranking da temporada.
+              {temporada.premio && ` Quem terminar em 1º leva ${temporada.premio}.`}{" "}
+              Assinantes concorrem aos sorteios de prêmios.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <a
@@ -571,15 +584,21 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
           {/* Cartão do prêmio: tipográfico; com foto configurada, ela aparece acima do nome */}
           <figure className="rounded-3xl bg-gradient-to-br from-asfalto-800 to-asfalto-900 p-8 ring-1 ring-white/10">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-sm font-bold text-asfalto-950">
-              <span aria-hidden>👑</span> Prêmio do 1º lugar
+              <span aria-hidden>👑</span> {temporada.premio ? "Prêmio do 1º lugar" : "Ranking aberto"}
             </span>
-            {temporada.premioImagem && (
+            {temporada.premio && temporada.premioImagem && (
               <PrizeShoe className="mx-auto mt-6 h-48 w-full max-w-sm" />
             )}
             <figcaption>
-              <p className="mt-6 font-display text-6xl leading-[0.85] font-extrabold uppercase md:text-7xl">
-                Tênis
-                <span className="block text-asfalto-300">de corrida</span>
+              <p className="mt-6 font-display text-6xl leading-[0.85] font-extrabold uppercase first-letter:uppercase md:text-7xl">
+                {temporada.premio ? (
+                  temporada.premio.replace(/^(um|uma) /, "")
+                ) : (
+                  <>
+                    Dispute
+                    <span className="block text-asfalto-300">o topo</span>
+                  </>
+                )}
               </p>
               <dl className="mt-8 grid grid-cols-3 gap-4 border-t border-white/10 pt-6">
                 <div>

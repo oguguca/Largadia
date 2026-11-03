@@ -15,7 +15,8 @@ export function SeasonBanner({ season, now, champion }: { season: Season; now: D
         </span>
         <div>
           <p className="font-display text-xl font-bold uppercase">
-            Temporada {season.label}: o 1º lugar ganha {temporada.premio}
+            Temporada {season.label}
+            {temporada.premio && `: o 1º lugar ganha ${temporada.premio}`}
           </p>
           <p className="text-sm text-asfalto-300">
             Termina em {dayMonth.format(lastDay(season))} ({left === 0 ? "último dia" : `faltam ${left} ${left === 1 ? "dia" : "dias"}`}). No

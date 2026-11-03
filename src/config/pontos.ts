@@ -8,12 +8,15 @@ export const pontos = {
   diasParaEnviar: 60,
 } as const;
 
-/** Ranking por temporada: quem termina em 1º leva o prêmio. */
+/** Ranking por temporada. Com `premio` preenchido, quem termina em 1º leva o prêmio. */
 export const temporada = {
   /** Duração de cada temporada, em meses (temporadas fixas: jan–mar, abr–jun, jul–set, out–dez) */
   meses: 3,
-  /** Prêmio do 1º colocado de cada temporada */
-  premio: "um tênis de corrida",
+  /**
+   * Prêmio do 1º colocado da temporada, como entra na frase ("um tênis de corrida").
+   * Vazio = temporada sem prêmio: o site não fala em prêmio do ranking em lugar nenhum.
+   */
+  premio: "" as string,
   /** Foto do prêmio em PNG com fundo transparente (em public/). Vazio mostra a ilustração de tênis */
   premioImagem: "",
   /** Prêmios fixos mostrados em "Prêmios em jogo", além dos sorteios abertos cadastrados no admin */

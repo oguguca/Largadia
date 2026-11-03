@@ -164,7 +164,7 @@ async function HeroPremium() {
     return (
       <a href="#premium" className={pill}>
         <span className={tag}>Premium</span>
-        Suas corridas valem pontos. O 1º da temporada ganha {temporada.premio}.
+        Suas corridas valem pontos e você concorre aos sorteios de prêmios.
       </a>
     );
   }
@@ -214,7 +214,7 @@ async function MemberSummary({ userId }: { userId: string }) {
           <p className="mt-1 text-asfalto-300">
             {season.label}, termina em {formatDateShort(lastDay(season))}.{" "}
             <span className="text-pace-500">{left === 0 ? "Último dia" : `Faltam ${left} ${left === 1 ? "dia" : "dias"}`}</span> para subir
-            no ranking. O 1º ganha {temporada.premio}.
+            no ranking.{temporada.premio && ` O 1º ganha ${temporada.premio}.`}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
@@ -262,7 +262,9 @@ async function Plans() {
   ];
   const premium = [
     `${pontos.porProva} pontos por prova concluída, mais ${pontos.porKm} por km`,
-    `Ranking por temporada de ${temporada.meses} meses: o 1º lugar ganha ${temporada.premio}`,
+    temporada.premio
+      ? `Ranking por temporada de ${temporada.meses} meses: o 1º lugar ganha ${temporada.premio}`
+      : `Ranking por temporada de ${temporada.meses} meses com os outros assinantes`,
     "Sorteios de prêmios só para assinantes",
   ];
 
@@ -521,7 +523,7 @@ async function PremiumBand() {
             <p className="mt-4 text-asfalto-300">
               {viewer.premium
                 ? `Cada corrida aprovada soma ${pontos.porProva} pontos, mais ${pontos.porKm} por km. Registre todas as provas que correr para subir na tabela.`
-                : `Cada prova concluída rende ${pontos.porProva} pontos, mais ${pontos.porKm} por km. Quem terminar a temporada em 1º ganha ${temporada.premio}.`}{" "}
+                : `Cada prova concluída rende ${pontos.porProva} pontos, mais ${pontos.porKm} por km. ${temporada.premio ? `Quem terminar a temporada em 1º ganha ${temporada.premio}.` : `Some pontos e dispute o topo do ranking da temporada.`}`}{" "}
               No empate, vence quem correu mais km.
             </p>
 
