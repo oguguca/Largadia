@@ -264,7 +264,8 @@ model PixPayment {
   @@index([userId, createdAt])
 }
 
-/// "Minhas corridas": prova que a pessoa já correu, como uma estante de livros, com a avaliação dela.
+/// "Minhas corridas": prova que a pessoa já correu ou vai correr, como uma estante de livros, com a avaliação dela.
+/// Prova futura entra como "próxima largada"; a avaliação abre no dia da prova.
 /// Grátis para qualquer conta. Comprovação aprovada nos pontos entra aqui sozinha.
 model RunLog {
   id                 String    @id @default(cuid())
@@ -279,6 +280,8 @@ model RunLog {
   customState        String?   @db.Char(2)
   /// Dia da prova (do calendário ou informado); ordena a estante
   raceDate           DateTime
+  /// Corrida virtual: a pessoa correu (ou vai correr) a distância onde quiser, sem largada no local
+  virtual            Boolean   @default(false)
   /// Distância corrida, em km
   distanceKm         Float?
   /// Tempo de conclusão, em segundos

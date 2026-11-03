@@ -4,34 +4,61 @@ import { useActionState, useState } from "react";
 import { CRITERIA, COMMENT_MAX } from "@/domain/biblioteca/biblioteca";
 import { StarInput } from "@/components/biblioteca/star-input";
 import { field, FieldError, keepValuesOnSubmit } from "../../corrida/[slug]/claim-form";
-import { RunDistanceField, RunTimeField } from "../add-run-form";
+import { RunDistanceField, RunTimeField, VirtualField } from "../add-run-form";
 import { removeRun, saveRun, type RunLogState } from "../actions";
 
 export type RunValues = {
   distanceKm: string;
   finishTime: string;
   comment: string;
+  virtual: boolean;
 } & Record<"rating" | (typeof CRITERIA)[number]["key"], number | null>;
 
-/** Distância, tempo e avaliação de uma corrida da estante. `publicReview`: a avaliação aparece na página da prova. */
+/**
+ * Distância, tempo e avaliação de uma corrida da estante. `publicReview`: a avaliação aparece na página da prova.
+ * `opensOn`: prova que ainda não aconteceu; só dá para mudar a distância e se é virtual, e a avaliação abre nesse dia.
+ */
 export function EditRunForm({
   id,
   initial,
   distances,
   publicReview,
   authorName,
+  opensOn,
 }: {
   id: string;
   initial: RunValues;
   distances: { km: number; label: string }[];
   publicReview: boolean;
   authorName: string;
+  opensOn?: string;
 }) {
   const [state, action, pending] = useActionState<RunLogState, FormData>(saveRun.bind(null, id), null);
   const errors = state?.errors ?? {};
   const v = state?.values;
   const num = (s: string | undefined, fallback: number | null) => (s === undefined ? fallback : s ? Number(s) : null);
   const [comment, setComment] = useState(v?.comment ?? initial.comment);
+  const virtual = v ? v.virtual === "on" : initial.virtual;
+
+  if (opensOn) {
+    return (
+      <form onSubmit={(e) => keepValuesOnSubmit(e, action)} className="space-y-5">
+        {state?.ok && <p className="rounded-lg bg-pace-500/20 p-3 text-sm font-semibold">Salvo.</p>}
+        {state?.error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.error}</p>}
+        <p className="rounded-xl bg-asfalto-50 p-4 text-sm text-asfalto-700 ring-1 ring-asfalto-100">
+          <strong className="block font-display text-lg text-asfalto-950 uppercase">Boa prova!</strong>
+          A avaliação e o seu tempo abrem em {opensOn}, no dia da prova. Até lá, ela fica em “Próximas largadas”.
+        </p>
+        <div className="max-w-xs">
+          <RunDistanceField distances={distances} defaultValue={v?.distanceKm ?? initial.distanceKm} error={errors.distanceKm?.[0]} />
+        </div>
+        <VirtualField defaultChecked={virtual} />
+        <button disabled={pending} className="rounded-xl bg-largada-500 px-5 py-2.5 font-semibold text-asfalto-950 hover:bg-largada-600 disabled:opacity-60">
+          {pending ? "Salvando…" : "Salvar"}
+        </button>
+      </form>
+    );
+  }
 
   return (
     <form onSubmit={(e) => keepValuesOnSubmit(e, action)} className="space-y-6">
@@ -41,6 +68,9 @@ export function EditRunForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <RunDistanceField distances={distances} defaultValue={v?.distanceKm ?? initial.distanceKm} error={errors.distanceKm?.[0]} />
         <RunTimeField defaultValue={v?.finishTime ?? initial.finishTime} error={errors.finishTime?.[0]} />
+        <div className="sm:col-span-2">
+          <VirtualField defaultChecked={virtual} />
+        </div>
       </div>
 
       <div className="space-y-1">

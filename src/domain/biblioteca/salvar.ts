@@ -2,9 +2,9 @@ import "server-only";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { parseDateBrt } from "@/lib/dates";
-import { customRaceSchema, OTHER_RACE } from "@/domain/pontos/pontos";
+import { OTHER_RACE } from "@/domain/pontos/pontos";
 import { saveUploadedImage } from "@/domain/uploads/imagem";
-import { hasStarted, runLogData, runLogSchema } from "./biblioteca";
+import { hasReview, hasStarted, MAX_YEARS_AHEAD, runLogData, runLogSchema, shelfCustomRaceSchema } from "./biblioteca";
 
 export type RunLogState = {
   ok?: boolean;
@@ -31,20 +31,21 @@ function distanceError(distances: number[], km: number | undefined) {
 
 /**
  * Põe uma corrida na estante. A prova pode ser do calendário (raceId) ou informada à mão (raceId = "outra").
- * Só entra prova que já aconteceu. Se ela já estiver na estante, devolve a que existe.
+ * Prova futura entra como próxima largada, sem nota nem tempo. Se ela já estiver na estante, devolve a que existe.
  */
 export async function addRunLog(userId: string, raceId: string, form: FormData): Promise<NonNullable<RunLogState> & { raceId?: string }> {
   const values = Object.fromEntries(form.entries());
   const parsed = runLogSchema.safeParse(values);
 
   if (raceId === OTHER_RACE) {
-    const custom = customRaceSchema.safeParse(values);
+    const custom = shelfCustomRaceSchema.safeParse(values);
     if (!parsed.success || !custom.success) {
       return { errors: { ...(parsed.success ? {} : fieldErrors(parsed.error.issues)), ...(custom.success ? {} : fieldErrors(custom.error.issues)) } };
     }
     const day = parseDateBrt(custom.data.customRaceDate);
     if (!day || day.getUTCFullYear() < 1970) return { errors: { customRaceDate: ["Data inválida."] } };
-    if (!hasStarted(day)) return { errors: { customRaceDate: ["Só entram corridas que já aconteceram."] } };
+    if (day.getTime() > Date.now() + MAX_YEARS_AHEAD * 366 * 86_400_000) return { errors: { customRaceDate: ["Data muito distante."] } };
+    if (!hasStarted(day) && hasReview(parsed.data)) return { error: "Nota e tempo ficam para depois da prova." };
     const duplicate = await db.runLog.findFirst({
       where: { userId, raceId: null, raceDate: day, customRaceName: { equals: custom.data.customRaceName, mode: "insensitive" } },
       select: { id: true },
@@ -55,8 +56,8 @@ export async function addRunLog(userId: string, raceId: string, form: FormData):
         userId,
         raceDate: day,
         customRaceName: custom.data.customRaceName,
-        customCity: custom.data.customCity,
-        customState: custom.data.customState,
+        customCity: custom.data.customCity ?? null,
+        customState: custom.data.customState ?? null,
         ...runLogData(parsed.data),
       },
       select: { id: true },
@@ -71,8 +72,8 @@ export async function addRunLog(userId: string, raceId: string, form: FormData):
     select: { id: true, startsAt: true, distancesKm: true },
   });
   if (!race) return { errors: { raceId: ["Prova não encontrada."] } };
-  if (!hasStarted(race.startsAt)) return { error: "Esta prova ainda não aconteceu." };
   if (!parsed.success) return { errors: fieldErrors(parsed.error.issues) };
+  if (!hasStarted(race.startsAt) && hasReview(parsed.data)) return { error: "Nota e tempo ficam para depois da prova." };
   const wrongDistance = distanceError(race.distancesKm, parsed.data.distanceKm);
   if (wrongDistance) return { errors: wrongDistance };
 
@@ -91,11 +92,13 @@ export async function updateRunLog(userId: string, logId: string, form: FormData
   if (!id.success) return { error: "Corrida não encontrada." };
   const log = await db.runLog.findFirst({
     where: { id: id.data, userId },
-    select: { id: true, raceId: true, race: { select: { distancesKm: true } } },
+    select: { id: true, raceId: true, raceDate: true, race: { select: { distancesKm: true } } },
   });
   if (!log) return { error: "Corrida não encontrada." };
   const parsed = runLogSchema.safeParse(Object.fromEntries(form.entries()));
   if (!parsed.success) return { errors: fieldErrors(parsed.error.issues) };
+  // Avaliar uma prova que ainda não aconteceu não faz sentido (e encheria a página dela de notas sem base)
+  if (!hasStarted(log.raceDate) && hasReview(parsed.data)) return { error: "A avaliação abre no dia da prova." };
   const wrongDistance = distanceError(log.race?.distancesKm ?? [], parsed.data.distanceKm);
   if (wrongDistance) return { errors: wrongDistance };
   await db.runLog.update({ where: { id: log.id }, data: runLogData(parsed.data) });

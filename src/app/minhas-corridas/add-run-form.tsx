@@ -6,7 +6,13 @@ import { OTHER_RACE } from "@/domain/pontos/pontos";
 import { field, FieldError, keepValuesOnSubmit } from "../corrida/[slug]/claim-form";
 import { addRun, type RunLogState } from "./actions";
 
-export type ShelfOption = { id: string; label: string; distances: { km: number; label: string }[] };
+export type ShelfOption = {
+  id: string;
+  label: string;
+  distances: { km: number; label: string }[];
+  /** Prova que ainda vai acontecer: entra sem tempo e é avaliada depois */
+  upcoming: boolean;
+};
 
 const label = "text-xs font-semibold text-asfalto-700";
 const hint = "block text-xs text-asfalto-500";
@@ -41,6 +47,25 @@ export function RunDistanceField({
   );
 }
 
+/** "Corrida virtual": a pessoa corre a distância onde quiser, sem largada no local. */
+export function VirtualField({ defaultChecked, onChange }: { defaultChecked?: boolean; onChange?: (checked: boolean) => void }) {
+  return (
+    <label className="flex items-start gap-2 text-sm">
+      <input
+        type="checkbox"
+        name="virtual"
+        defaultChecked={defaultChecked}
+        onChange={(e) => onChange?.(e.target.checked)}
+        className="mt-0.5 h-4 w-4 accent-largada-500"
+      />
+      <span>
+        <span className="font-semibold">Corrida virtual</span>
+        <span className="block text-xs text-asfalto-500">Você corre a distância onde quiser, sem largada no local.</span>
+      </span>
+    </label>
+  );
+}
+
 export function RunTimeField({ defaultValue, error }: { defaultValue?: string; error?: string }) {
   return (
     <label className="block space-y-1">
@@ -52,10 +77,11 @@ export function RunTimeField({ defaultValue, error }: { defaultValue?: string; e
 }
 
 /**
- * Põe uma corrida na estante. A prova vem do calendário (já aconteceu) ou, se não estiver nele,
- * a pessoa informa nome, data e local. `today` limita a data (aaaa-mm-dd). Depois de salvar, abre a avaliação.
+ * Põe uma corrida na estante: já corrida ou que a pessoa ainda vai correr. A prova vem do calendário ou,
+ * se não estiver nele, a pessoa informa nome, data e local. `today` e `maxDate` são dias (aaaa-mm-dd).
+ * Depois de salvar, abre a tela da corrida (avaliação, quando a prova já aconteceu).
  */
-export function AddRunForm({ races, today }: { races: ShelfOption[]; today: string }) {
+export function AddRunForm({ races, today, maxDate }: { races: ShelfOption[]; today: string; maxDate: string }) {
   const [state, action, pending] = useActionState<RunLogState, FormData>(addRun, null);
   const [raceId, setRaceId] = useState(races.length ? "" : OTHER_RACE);
   const [query, setQuery] = useState("");
@@ -63,6 +89,10 @@ export function AddRunForm({ races, today }: { races: ShelfOption[]; today: stri
   const custom = raceId === OTHER_RACE;
   const errors = state?.errors ?? {};
   const values = state?.values;
+  const [virtual, setVirtual] = useState(values?.virtual === "on");
+  const [customDate, setCustomDate] = useState(values?.customRaceDate ?? "");
+  // Prova futura não tem tempo ainda: o campo some
+  const upcoming = custom ? !!customDate && customDate > today : !!race?.upcoming;
 
   // Busca sem acento e sem caixa, para achar a prova no meio de centenas
   const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -92,16 +122,26 @@ export function AddRunForm({ races, today }: { races: ShelfOption[]; today: stri
           <option value="" disabled>
             {shown.length ? `Escolha a prova (${shown.length})` : "Nenhuma prova encontrada"}
           </option>
-          {shown.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.label}
-            </option>
-          ))}
+          {[
+            { label: "Próximas provas", items: shown.filter((r) => r.upcoming) },
+            { label: "Já aconteceram", items: shown.filter((r) => !r.upcoming) },
+          ].map(
+            (g) =>
+              g.items.length > 0 && (
+                <optgroup key={g.label} label={g.label}>
+                  {g.items.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ),
+          )}
           {/* A escolhida continua na lista mesmo quando a busca muda */}
           {race && !shown.includes(race) && <option value={race.id}>{race.label}</option>}
           <option value={OTHER_RACE}>Minha prova não está na lista</option>
         </select>
-        <span className={hint}>A lista traz as provas do calendário que já aconteceram.</span>
+        <span className={hint}>Vale prova que você já correu ou que ainda vai correr: a avaliação abre no dia dela.</span>
         <FieldError msg={errors.raceId?.[0]} />
       </label>
 
@@ -114,18 +154,27 @@ export function AddRunForm({ races, today }: { races: ShelfOption[]; today: stri
           </label>
           <label className="block space-y-1">
             <span className={label}>Data da prova</span>
-            <input name="customRaceDate" type="date" required min="1970-01-01" max={today} defaultValue={values?.customRaceDate} className={field} />
+            <input
+              name="customRaceDate"
+              type="date"
+              required
+              min="1970-01-01"
+              max={maxDate}
+              value={customDate}
+              onChange={(e) => setCustomDate(e.target.value)}
+              className={field}
+            />
             <FieldError msg={errors.customRaceDate?.[0]} />
           </label>
           <div className="grid grid-cols-[1fr_6.5rem] gap-2">
             <label className="block space-y-1">
               <span className={label}>Cidade</span>
-              <input name="customCity" required minLength={2} maxLength={80} defaultValue={values?.customCity} className={field} />
+              <input name="customCity" required={!virtual} minLength={2} maxLength={80} defaultValue={values?.customCity} className={field} />
               <FieldError msg={errors.customCity?.[0]} />
             </label>
             <label className="block space-y-1">
               <span className={label}>UF</span>
-              <select name="customState" required defaultValue={values?.customState ?? ""} className={field}>
+              <select name="customState" required={!virtual} defaultValue={values?.customState ?? ""} className={field}>
                 <option value="" disabled>
                   UF
                 </option>
@@ -143,14 +192,21 @@ export function AddRunForm({ races, today }: { races: ShelfOption[]; today: stri
       <div key={raceId}>
         <RunDistanceField distances={race?.distances ?? []} defaultValue={values?.distanceKm} error={errors.distanceKm?.[0]} />
       </div>
-      <RunTimeField defaultValue={values?.finishTime} error={errors.finishTime?.[0]} />
+      {upcoming ? (
+        <p className="self-end pb-2 text-sm text-asfalto-500">Prova futura: o tempo e a nota você coloca depois de correr.</p>
+      ) : (
+        <RunTimeField defaultValue={values?.finishTime} error={errors.finishTime?.[0]} />
+      )}
+      <div className="sm:col-span-2">
+        <VirtualField defaultChecked={virtual} onChange={setVirtual} />
+      </div>
 
       <div className="sm:col-span-2">
         <button
           disabled={pending || !raceId}
           className="rounded-xl bg-largada-500 px-5 py-2.5 font-semibold text-asfalto-950 hover:bg-largada-600 disabled:opacity-60"
         >
-          {pending ? "Adicionando…" : "Adicionar e avaliar"}
+          {pending ? "Adicionando…" : upcoming ? "Adicionar às próximas" : "Adicionar e avaliar"}
         </button>
       </div>
     </form>

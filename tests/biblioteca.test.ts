@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasStarted, personalRecords, runLogData, runLogSchema, shelfStats, summarizeRatings } from "@/domain/biblioteca/biblioteca";
+import { hasReview, hasStarted, personalRecords, runLogData, shelfCustomRaceSchema, runLogSchema, shelfStats, summarizeRatings } from "@/domain/biblioteca/biblioteca";
 
 describe("runLogSchema", () => {
   it("aceita tudo em branco: a corrida entra na estante sem avaliação", () => {
@@ -90,5 +90,30 @@ describe("personalRecords", () => {
       [10, "c"],
     ]);
     expect(r[1].paceSeconds).toBe(330);
+  });
+});
+
+describe("corrida virtual e próximas largadas", () => {
+  it("lê a caixa de corrida virtual", () => {
+    expect(runLogData(runLogSchema.parse({ virtual: "on" })).virtual).toBe(true);
+    expect(runLogData(runLogSchema.parse({})).virtual).toBe(false);
+  });
+
+  it("corrida virtual informada à mão não precisa de cidade", () => {
+    const base = { customRaceName: "Desafio 10K", customRaceDate: "2026-11-08" };
+    expect(shelfCustomRaceSchema.safeParse({ ...base, virtual: "on" }).success).toBe(true);
+    const presencial = shelfCustomRaceSchema.safeParse(base);
+    expect(presencial.success).toBe(false);
+    expect(presencial.error?.issues.map((i) => i.path[0])).toEqual(["customCity", "customState"]);
+  });
+
+  it("só distância e virtual não contam como avaliação", () => {
+    expect(hasReview(runLogSchema.parse({ distanceKm: "10", virtual: "on" }))).toBe(false);
+    expect(hasReview(runLogSchema.parse({ finishTime: "50:00" }))).toBe(true);
+    expect(hasReview(runLogSchema.parse({ rating: "4" }))).toBe(true);
+  });
+
+  it("corrida virtual não soma cidade", () => {
+    expect(shelfStats([{ distanceKm: 5, city: "São Paulo", state: "SP", virtual: true }]).cities).toBe(0);
   });
 });

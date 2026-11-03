@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PACE_LIMITS, parseFinishTime } from "@/domain/pontos/pontos";
+import { UFS } from "@/config/corridas";
 
 /** Notas opcionais da avaliação, além da nota geral. */
 export const CRITERIA = [
@@ -52,6 +53,8 @@ export const runLogSchema = z
     ratingKit: stars,
     ratingHydration: stars,
     comment: z.preprocess(blank, z.string().trim().max(COMMENT_MAX, `Até ${COMMENT_MAX} caracteres`).optional()),
+    /** Caixa "Corrida virtual" marcada */
+    virtual: z.preprocess((v) => v === "on" || v === "1" || v === true, z.boolean()),
   })
   .superRefine((v, ctx) => {
     const extras = CRITERIA.some((c) => v[c.key] !== undefined) || !!v.comment;
@@ -77,8 +80,32 @@ export function runLogData(v: RunLogInput) {
     ratingKit: v.ratingKit ?? null,
     ratingHydration: v.ratingHydration ?? null,
     comment: v.comment || null,
+    virtual: v.virtual,
   };
 }
+
+/** A pessoa preencheu algo que só existe depois da prova (nota, tempo ou comentário)? */
+export function hasReview(v: RunLogInput) {
+  return v.rating !== undefined || v.finishTime !== undefined || !!v.comment || CRITERIA.some((c) => v[c.key] !== undefined);
+}
+
+/** Quantos anos à frente uma prova informada à mão pode estar. */
+export const MAX_YEARS_AHEAD = 2;
+
+/** Prova informada à mão na estante. Corrida virtual não tem cidade; as outras precisam de cidade e UF. */
+export const shelfCustomRaceSchema = z
+  .object({
+    customRaceName: z.string().trim().min(3, "Informe o nome da prova").max(120),
+    customRaceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Informe a data da prova"),
+    customCity: z.preprocess(blank, z.string().trim().min(2, "Informe a cidade").max(80).optional()),
+    customState: z.preprocess(blank, z.enum(UFS, { message: "Escolha o estado" }).optional()),
+    virtual: z.preprocess((v) => v === "on" || v === "1" || v === true, z.boolean()),
+  })
+  .superRefine((v, ctx) => {
+    if (v.virtual) return;
+    if (!v.customCity) ctx.addIssue({ code: "custom", path: ["customCity"], message: "Informe a cidade" });
+    if (!v.customState) ctx.addIssue({ code: "custom", path: ["customState"], message: "Escolha o estado" });
+  });
 
 type Ratings = { rating: number | null } & Record<CriterionKey, number | null>;
 
@@ -97,9 +124,9 @@ export function summarizeRatings(rows: Ratings[]) {
   };
 }
 
-/** Totais da estante: corridas, km e cidades diferentes. */
-export function shelfStats(logs: { distanceKm: number | null; city: string | null; state: string | null }[]) {
-  const places = new Set(logs.filter((l) => l.city && l.state).map((l) => `${l.city!.trim().toLowerCase()}/${l.state}`));
+/** Totais da estante: corridas, km e cidades diferentes (corrida virtual não conta cidade). */
+export function shelfStats(logs: { distanceKm: number | null; city: string | null; state: string | null; virtual?: boolean }[]) {
+  const places = new Set(logs.filter((l) => !l.virtual && l.city && l.state).map((l) => `${l.city!.trim().toLowerCase()}/${l.state}`));
   return {
     runs: logs.length,
     km: Math.round(logs.reduce((n, l) => n + (l.distanceKm ?? 0), 0) * 10) / 10,

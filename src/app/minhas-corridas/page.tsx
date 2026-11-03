@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { formatDateShort, formatDistance } from "@/lib/format";
 import { RunCover } from "@/components/biblioteca/run-cover";
 import { Stars } from "@/components/biblioteca/stars";
-import { brtDay, personalRecords, shelfStats, type PersonalRecord } from "@/domain/biblioteca/biblioteca";
+import { brtDay, hasStarted, MAX_YEARS_AHEAD, personalRecords, shelfStats, type PersonalRecord } from "@/domain/biblioteca/biblioteca";
 import { photoUrl } from "@/domain/biblioteca/salvar";
 import { formatFinishTime } from "@/domain/pontos/pontos";
 import type { RaceType } from "@/generated/prisma/enums";
@@ -35,10 +35,19 @@ type ShelfItem = {
   finishSeconds: number | null;
   rating: number | null;
   points: number | null;
+  virtual: boolean;
+  /** Prova que ainda vai acontecer */
+  upcoming: boolean;
 };
 
 /** "10K", "21,1K": a distância como vem no número de peito. */
 const shortKm = (km: number) => `${km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}K`;
+
+/** Dias de Brasília até a prova: "Hoje", "Amanhã", "Em 5 dias". */
+function countdown(date: Date, now: Date) {
+  const days = Math.round((Date.parse(brtDay(date)) - Date.parse(brtDay(now))) / 86_400_000);
+  return days <= 0 ? "Hoje" : days === 1 ? "Amanhã" : `Em ${days} dias`;
+}
 
 /** 330 -> "5:30/km" */
 const pace = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}/km`;
@@ -47,7 +56,8 @@ async function Shelf({ searchParams }: { searchParams: PageProps<"/minhas-corrid
   const user = await requireUser("/minhas-corridas");
   const adding = (await searchParams).adicionar === "1";
   const now = new Date();
-  const [logs, claims, past] = await Promise.all([
+  const endOfToday = new Date(`${brtDay(now)}T23:59:59.999-03:00`);
+  const [logs, claims, past, future] = await Promise.all([
     db.runLog.findMany({
       where: { userId: user.id },
       orderBy: [{ raceDate: "desc" }, { createdAt: "desc" }],
@@ -56,9 +66,16 @@ async function Shelf({ searchParams }: { searchParams: PageProps<"/minhas-corrid
     db.pointClaim.findMany({ where: { userId: user.id, status: "APROVADA", raceId: { not: null } }, select: { raceId: true, points: true } }),
     // Provas do calendário que já aconteceram, para escolher no "Adicionar corrida"
     db.race.findMany({
-      where: { moderationStatus: "APROVADA", startsAt: { lt: new Date(`${brtDay(now)}T23:59:59-03:00`) } },
+      where: { moderationStatus: "APROVADA", startsAt: { lte: endOfToday } },
       orderBy: { startsAt: "desc" },
       take: 1500,
+      select: { id: true, name: true, city: true, state: true, startsAt: true, distancesKm: true },
+    }),
+    // E as que ainda vão acontecer, para quem já se inscreveu
+    db.race.findMany({
+      where: { moderationStatus: "APROVADA", startsAt: { gt: endOfToday } },
+      orderBy: { startsAt: "asc" },
+      take: 1000,
       select: { id: true, name: true, city: true, state: true, startsAt: true, distancesKm: true },
     }),
   ]);
@@ -77,21 +94,28 @@ async function Shelf({ searchParams }: { searchParams: PageProps<"/minhas-corrid
     finishSeconds: l.finishSeconds,
     rating: l.rating,
     points: l.raceId ? (pointsByRace.get(l.raceId) ?? null) : null,
+    virtual: l.virtual,
+    upcoming: !hasStarted(l.raceDate, now),
   }));
 
   const onShelf = new Set(logs.map((l) => l.raceId));
-  const options: ShelfOption[] = past
+  const options: ShelfOption[] = [...future, ...past]
     .filter((r) => !onShelf.has(r.id))
     .map((r) => ({
       id: r.id,
       label: `${formatDateShort(r.startsAt)} · ${r.name} (${r.city}/${r.state})`,
       distances: r.distancesKm.map((km) => ({ km, label: formatDistance(km) })),
+      upcoming: r.startsAt > endOfToday,
     }));
 
-  const stats = shelfStats(items);
-  const rated = items.filter((i) => i.rating !== null).length;
-  const years = Map.groupBy(items, (i) => Number(brtDay(i.date).slice(0, 4)));
-  const records = personalRecords(items);
+  // Números, recordes e prateleiras por ano só com o que já foi corrido; as futuras ficam numa prateleira só delas
+  const done = items.filter((i) => !i.upcoming);
+  const upcoming = items.filter((i) => i.upcoming).reverse();
+  const stats = shelfStats(done);
+  const rated = done.filter((i) => i.rating !== null).length;
+  const years = Map.groupBy(done, (i) => Number(brtDay(i.date).slice(0, 4)));
+  const records = personalRecords(done);
+  const maxDate = `${Number(brtDay(now).slice(0, 4)) + MAX_YEARS_AHEAD}${brtDay(now).slice(4)}`;
   // Sem corridas, o formulário já aparece aberto
   const showForm = adding || !items.length;
 
@@ -103,7 +127,8 @@ async function Shelf({ searchParams }: { searchParams: PageProps<"/minhas-corrid
           <div>
             <h1 className="font-display text-6xl leading-[0.9] font-extrabold italic uppercase md:text-7xl">Minhas corridas</h1>
             <p className="mt-4 max-w-xl text-lg text-asfalto-300">
-              Cada prova que você já correu, com a sua nota. Suas avaliações aparecem na página da prova e ajudam quem vai correr a próxima.
+              Cada prova que você já correu, com a sua nota, e as próximas em que vai largar. Suas avaliações aparecem na página da prova e
+              ajudam quem vai correr a próxima.
             </p>
             {!showForm && (
               <Link
@@ -120,7 +145,7 @@ async function Shelf({ searchParams }: { searchParams: PageProps<"/minhas-corrid
               <Stat label="Avaliadas" value={`${rated}/${stats.runs}`} />
             </dl>
           </div>
-          {items.length > 0 && <Records records={records} />}
+          {done.length > 0 && <Records records={records} />}
         </div>
       </section>
 
@@ -130,7 +155,9 @@ async function Shelf({ searchParams }: { searchParams: PageProps<"/minhas-corrid
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-display text-3xl font-bold uppercase">Adicionar corrida</h2>
-                <p className="text-sm text-asfalto-500">Escolha a prova, diga a distância e, se quiser, o seu tempo. Depois você avalia.</p>
+                <p className="text-sm text-asfalto-500">
+                  Escolha a prova, já corrida ou que você ainda vai correr, e diga a distância. A avaliação abre no dia da prova.
+                </p>
               </div>
               {items.length > 0 && (
                 <Link href="/minhas-corridas" className="text-sm text-asfalto-500 underline hover:text-asfalto-900">
@@ -139,13 +166,24 @@ async function Shelf({ searchParams }: { searchParams: PageProps<"/minhas-corrid
               )}
             </div>
             <div className="mt-6 max-w-3xl">
-              <AddRunForm races={options} today={brtDay(now)} />
+              <AddRunForm races={options} today={brtDay(now)} maxDate={maxDate} />
             </div>
           </section>
         )}
 
+        {upcoming.length > 0 && (
+          <ShelfSection id="proximas" title="Próximas largadas" runs={upcoming} now={now} addSlot>
+            {upcoming.length} {upcoming.length === 1 ? "prova marcada" : "provas marcadas"}
+          </ShelfSection>
+        )}
         {items.length ? (
-          [...years].map(([year, runs], i) => <YearShelf key={year} year={year} runs={runs} first={i === 0} />)
+          [...years].map(([year, runs], i) => (
+            <ShelfSection key={year} id={`ano-${year}`} title={String(year)} runs={runs} now={now} addSlot={!upcoming.length && i === 0}>
+              {runs.length} {runs.length === 1 ? "corrida" : "corridas"}
+              {runs.some((r) => r.distanceKm) &&
+                `, ${runs.reduce((n, r) => n + (r.distanceKm ?? 0), 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`}
+            </ShelfSection>
+          ))
         ) : (
           <p className="text-center text-asfalto-500">
             Sua estante está vazia. Adicione a primeira corrida acima, ou abra a página de uma prova que você correu e clique em
@@ -194,24 +232,37 @@ function Records({ records }: { records: PersonalRecord[] }) {
 }
 
 /** Uma prateleira por ano: as capas (cartazes) ficam em pé sobre a tábua, e o nome e a nota vêm embaixo dela. */
-function YearShelf({ year, runs, first }: { year: number; runs: ShelfItem[]; first: boolean }) {
-  const km = runs.reduce((n, r) => n + (r.distanceKm ?? 0), 0);
+function ShelfSection({
+  id,
+  title,
+  runs,
+  now,
+  addSlot,
+  children,
+}: {
+  id: string;
+  title: string;
+  runs: ShelfItem[];
+  now: Date;
+  /** A primeira vaga vazia leva ao "Adicionar corrida" (só numa prateleira da página) */
+  addSlot: boolean;
+  /** Resumo à direita do título */
+  children: React.ReactNode;
+}) {
+  const first = addSlot;
   return (
-    <section aria-labelledby={`ano-${year}`}>
+    <section aria-labelledby={id}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id={`ano-${year}`} className="font-display text-5xl font-extrabold italic">
-          {year}
+        <h2 id={id} className="font-display text-5xl font-extrabold italic uppercase">
+          {title}
         </h2>
-        <p className="text-sm text-asfalto-500">
-          {runs.length} {runs.length === 1 ? "corrida" : "corridas"}
-          {km > 0 && `, ${km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`}
-        </p>
+        <p className="text-sm text-asfalto-500">{children}</p>
       </div>
       {/* Sem espaço entre colunas: cada capa leva o seu pedaço de tábua, e os pedaços formam uma tábua só na linha */}
       <ul className="mt-4 grid grid-cols-2 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
         {runs.map((r) => (
           <li key={r.id}>
-            <Cover run={r} year={year} />
+            <Cover run={r} year={Number(brtDay(r.date).slice(0, 4))} now={now} />
           </li>
         ))}
         {[1, 2, 3].map((k) => (
@@ -262,8 +313,8 @@ function EmptySlot({ add }: { add: boolean }) {
   );
 }
 
-function Cover({ run, year }: { run: ShelfItem; year: number }) {
-  const place = run.city && run.state ? `${run.city}/${run.state}` : null;
+function Cover({ run, year, now }: { run: ShelfItem; year: number; now: Date }) {
+  const place = run.virtual ? "Virtual" : run.city && run.state ? `${run.city}/${run.state}` : null;
   return (
     <Link href={`/minhas-corridas/${run.id}`} className="group block focus-visible:outline-none">
       <div className="px-2.5 sm:px-3">
@@ -290,7 +341,9 @@ function Cover({ run, year }: { run: ShelfItem; year: number }) {
           {place && ` · ${place}`}
         </p>
         <div className="mt-2">
-          {run.rating !== null ? (
+          {run.upcoming ? (
+            <span className="rounded bg-asfalto-950 px-2 py-0.5 text-xs font-bold text-white">{countdown(run.date, now)}</span>
+          ) : run.rating !== null ? (
             <span className="flex items-center gap-1.5">
               <Stars value={run.rating} className="h-4 w-4" />
               <span className="text-sm font-semibold tabular-nums">{run.rating.toLocaleString("pt-BR")}</span>

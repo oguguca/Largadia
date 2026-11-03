@@ -99,3 +99,35 @@ async function ShelfButton({ race }: { race: { id: string; slug: string } }) {
     </form>
   );
 }
+
+/** Prova futura: "Vou correr" põe a prova nas próximas largadas da pessoa; depois da prova ela avalia. */
+export async function PlanSection({ race }: { race: { id: string; slug: string } }) {
+  await connection();
+  const session = await currentSession();
+  const userId = session?.user?.id;
+  const log = userId ? await db.runLog.findUnique({ where: { userId_raceId: { userId, raceId: race.id } }, select: { id: true } }) : null;
+  const button = "shrink-0 rounded-xl px-4 py-2 text-sm font-semibold";
+  return (
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 ring-1 ring-asfalto-100">
+      <p className="text-sm">
+        <strong className="block font-display text-lg uppercase">{log ? "Você vai correr esta" : "Vai correr esta prova?"}</strong>
+        <span className="text-asfalto-500">
+          {log ? "Ela está nas suas próximas largadas. Depois da prova, é só avaliar." : "Guarde nas suas corridas e avalie depois de correr."}
+        </span>
+      </p>
+      {log ? (
+        <Link href={`/minhas-corridas/${log.id}`} className={`${button} ring-1 ring-asfalto-300 hover:bg-asfalto-50`}>
+          Ver nas minhas corridas
+        </Link>
+      ) : userId ? (
+        <form action={addRaceToShelf.bind(null, race.id, race.slug)}>
+          <button className={`${button} bg-largada-500 text-asfalto-950 hover:bg-largada-600`}>Vou correr</button>
+        </form>
+      ) : (
+        <Link href={`/entrar?voltar=/corrida/${race.slug}`} className={`${button} bg-asfalto-950 text-white hover:bg-asfalto-800`}>
+          Entrar para guardar
+        </Link>
+      )}
+    </section>
+  );
+}

@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { formatDateLong, formatDistance } from "@/lib/format";
 import { RunCover } from "@/components/biblioteca/run-cover";
-import { brtDay } from "@/domain/biblioteca/biblioteca";
+import { brtDay, hasStarted } from "@/domain/biblioteca/biblioteca";
 import { photoUrl } from "@/domain/biblioteca/salvar";
 import { isPremium } from "@/domain/assinatura/status";
 import { claimBlockReason, claimStatusLabels, formatFinishTime, publicName } from "@/domain/pontos/pontos";
@@ -48,7 +48,9 @@ async function RunDetail({
   const canClaim = !!race && (!claim || claim.status === "RECUSADA") && !claimBlockReason(race, { premium: isPremium(user) }, null);
 
   const name = race?.name ?? log.customRaceName ?? "Corrida";
-  const place = race ? `${race.city}/${race.state}` : log.customCity && log.customState ? `${log.customCity}/${log.customState}` : null;
+  const city = race ? `${race.city}/${race.state}` : log.customCity && log.customState ? `${log.customCity}/${log.customState}` : null;
+  const place = log.virtual ? "Corrida virtual" : city;
+  const upcoming = !hasStarted(log.raceDate);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -57,7 +59,9 @@ async function RunDetail({
       </Link>
 
       {nova === "1" && (
-        <p className="mt-4 rounded-lg bg-pace-500/20 p-3 text-sm font-semibold">Corrida adicionada à sua estante. Agora dê a sua nota.</p>
+        <p className="mt-4 rounded-lg bg-pace-500/20 p-3 text-sm font-semibold">
+          {upcoming ? "Prova adicionada às suas próximas largadas." : "Corrida adicionada à sua estante. Agora dê a sua nota."}
+        </p>
       )}
 
       <div className="mt-4 grid gap-8 md:grid-cols-[18rem_1fr]">
@@ -105,7 +109,9 @@ async function RunDetail({
               distances={(race?.distancesKm ?? []).map((km) => ({ km, label: formatDistance(km) }))}
               publicReview={!!race}
               authorName={publicName(user.name)}
+              opensOn={upcoming ? formatDateLong(log.raceDate) : undefined}
               initial={{
+                virtual: log.virtual,
                 distanceKm: log.distanceKm === null ? "" : String(log.distanceKm),
                 finishTime: log.finishSeconds === null ? "" : formatFinishTime(log.finishSeconds),
                 comment: log.comment ?? "",
