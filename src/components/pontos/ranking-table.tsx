@@ -33,6 +33,7 @@ export function RankingTable({
   empty,
   footer,
   pageSize,
+  pager = true,
 }: {
   rows: RankingRow[];
   viewerId?: string | null;
@@ -42,6 +43,8 @@ export function RankingTable({
   footer?: React.ReactNode;
   /** Com mais linhas que isso, a tabela vira páginas com setas (10 posições por página) */
   pageSize?: number;
+  /** false: uma página só, com as vagas vazias, sem setas (o top 5 da página inicial) */
+  pager?: boolean;
 }) {
   if (!rows.length && !pageSize) {
     return (
@@ -129,6 +132,7 @@ export function RankingTable({
 
   if (!pageSize)
     return <div className="flex-1">{table(rows, true, 1)}</div>;
+  if (!pager) return table(rows.slice(0, pageSize), true, 1);
   const pages = chunk(rows, pageSize);
   return (
     <Paged
