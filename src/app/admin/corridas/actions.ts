@@ -98,7 +98,7 @@ export async function saveRace(id: string | null, _prev: FormState, form: FormDa
   };
 
   if (id) {
-    await db.race.update({ where: { id }, data });
+    await db.$transaction([db.race.update({ where: { id }, data }), syncClaimDates(id, d.startsAt)]);
   } else {
     await db.race.create({ data: { ...data, source: "ADMIN" } });
   }
@@ -107,6 +107,30 @@ export async function saveRace(id: string | null, _prev: FormState, form: FormDa
 }
 
 const idSchema = z.string().cuid();
+
+/**
+ * A temporada de uma corrida registrada sai de `raceDate`, copiado da prova no envio.
+ * Se a data da prova muda (edição ou reimportação), os registros acompanham.
+ */
+function syncClaimDates(raceId: string, startsAt: Date) {
+  return db.pointClaim.updateMany({ where: { raceId, raceDate: { not: startsAt } }, data: { raceDate: startsAt } });
+}
+
+/**
+ * Antes de excluir uma prova, os registros de pontos dela viram "prova informada" com nome, data e cidade.
+ * Sem isso, a exclusão em cascata apagaria os pontos já aprovados dos assinantes.
+ */
+async function deleteRaceKeepingClaims(raceId: string) {
+  const race = await db.race.findUnique({ where: { id: raceId }, select: { name: true, startsAt: true, city: true, state: true } });
+  if (!race) return;
+  await db.$transaction([
+    db.pointClaim.updateMany({
+      where: { raceId },
+      data: { raceId: null, customRaceName: race.name, customRaceDate: race.startsAt, customCity: race.city, customState: race.state },
+    }),
+    db.race.deleteMany({ where: { id: raceId } }),
+  ]);
+}
 
 export async function setModeration(id: string, status: "APROVADA" | "RECUSADA") {
   await requireAdmin();
@@ -130,7 +154,7 @@ export async function setModeration(id: string, status: "APROVADA" | "RECUSADA")
 export async function deleteRace(id: string, form: FormData) {
   await requireAdmin();
   if (form.get("confirmar") !== "EXCLUIR") redirect(`/admin/corridas/${id}?erro=confirmacao`);
-  await db.race.delete({ where: { id: idSchema.parse(id) } });
+  await deleteRaceKeepingClaims(idSchema.parse(id));
   updateTag(RACES_TAG);
   redirect("/admin/corridas?excluida=1");
 }
@@ -258,12 +282,13 @@ export async function importCalendar(payload: unknown): Promise<CalendarImportSt
         select: { id: true, imageUrl: true, distancesKm: true, startsAt: true, timeKnown: true },
       });
       if (existing) {
+        // Horário confirmado no admin fica; só a data acompanha a plataforma
+        const startsAt = existing.timeKnown ? keepTimeOfDay(existing.startsAt, data.startsAt) : data.startsAt;
         await db.race.update({
           where: { id: existing.id },
           data: {
             externalId: data.externalId,
-            // Horário confirmado no admin fica; só a data acompanha a plataforma
-            startsAt: existing.timeKnown ? keepTimeOfDay(existing.startsAt, data.startsAt) : data.startsAt,
+            startsAt,
             registrationStatus: data.registrationStatus,
             registrationClosesAt: data.registrationClosesAt,
             registrationUrl: data.registrationUrl,
@@ -271,6 +296,7 @@ export async function importCalendar(payload: unknown): Promise<CalendarImportSt
             ...(existing.distancesKm.length ? {} : { distancesKm: data.distancesKm }),
           },
         });
+        if (startsAt.getTime() !== existing.startsAt.getTime()) await syncClaimDates(existing.id, startsAt);
         state.updated++;
         continue;
       }
@@ -365,8 +391,8 @@ export async function draftFromPage(payload: unknown): Promise<PageDraftState> {
 /** Remoção direto da lista do admin (a confirmação fica no próprio botão). */
 export async function removeRace(id: string) {
   await requireAdmin();
-  // deleteMany não falha se a corrida já tiver sido removida em outra aba
-  await db.race.deleteMany({ where: { id: idSchema.parse(id) } });
+  // Não falha se a corrida já tiver sido removida em outra aba
+  await deleteRaceKeepingClaims(idSchema.parse(id));
   updateTag(RACES_TAG);
   redirect("/admin/corridas?excluida=1");
 }
