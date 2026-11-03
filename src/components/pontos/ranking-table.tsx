@@ -160,7 +160,8 @@ function RankRow({ row, me }: { row: RankingRow; me: boolean }) {
       }
     >
       <td
-        className={`px-4 py-2.5 font-display text-2xl font-extrabold tabular-nums ${podium ?? "text-asfalto-300"}`}
+        // Do 4º em diante, cor neutra: o cinza claro fica só para as vagas livres
+        className={`px-4 py-2.5 font-display text-2xl font-extrabold tabular-nums ${podium ?? "text-asfalto-700"}`}
       >
         {row.position}º
       </td>

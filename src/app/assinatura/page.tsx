@@ -55,7 +55,7 @@ const perks = [
   },
   {
     title: "Sorteios exclusivos",
-    text: "Concorra a inscrições, tênis, suplementos e kits.",
+    text: "Concorra a inscrições em corridas, tênis e outros itens para correr.",
   },
   {
     title: "Cupons de desconto",
@@ -552,8 +552,9 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
           className="absolute -top-24 right-0 h-96 w-1/2 rounded-full bg-largada-500/15 blur-3xl"
           aria-hidden
         />
-        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 pt-12 pb-16 md:pt-16 lg:grid-cols-2 lg:items-center lg:gap-16">
-          <div>
+        {/* Mesma grade de 5 colunas (3 + 2) do ranking e do plano: a coluna da direita alinha na página toda */}
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 pt-12 pb-16 md:pt-16 lg:grid-cols-5 lg:items-center lg:gap-8">
+          <div className="lg:col-span-3">
             {/* Uma palavra por linha, sem pontuação: lê como placa de largada */}
             <h1 className="font-display text-7xl leading-[0.85] font-extrabold italic uppercase md:text-8xl">
               <span className="block">Corra</span>
@@ -582,7 +583,7 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
           </div>
 
           {/* Cartão do prêmio: tipográfico; com foto configurada, ela aparece acima do nome */}
-          <figure className="rounded-3xl bg-gradient-to-br from-asfalto-800 to-asfalto-900 p-8 ring-1 ring-white/10">
+          <figure className="rounded-3xl bg-gradient-to-br from-asfalto-800 to-asfalto-900 p-8 ring-1 ring-white/10 lg:col-span-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-sm font-bold text-asfalto-950">
               <span aria-hidden>👑</span> {temporada.premio ? "Prêmio do 1º lugar" : "Ranking aberto"}
             </span>
@@ -700,7 +701,7 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
             <ul className="grid flex-1 grid-cols-2 grid-rows-[1fr_auto] gap-3">
               <li className="flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-asfalto-100">
                 <BibPrize />
-                <p className="border-t border-asfalto-100 p-4 font-display text-lg leading-tight font-bold uppercase">
+                <p className="h-24 border-t border-asfalto-100 p-4 font-display text-lg leading-tight font-bold uppercase">
                   Inscrições em corridas
                   <span className="mt-0.5 block font-sans text-sm font-normal text-asfalto-500 normal-case">
                     Provas escolhidas pelo Largadia
@@ -709,9 +710,9 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
               </li>
               <li className="flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-asfalto-100">
                 <div className="grid min-h-32 flex-1 place-items-center bg-asfalto-50 p-4" aria-hidden>
-                  <PrizeShoe className="w-full max-w-44" />
+                  <PrizeShoe className="w-11/12" />
                 </div>
-                <p className="border-t border-asfalto-100 p-4 font-display text-lg leading-tight font-bold uppercase">
+                <p className="h-24 border-t border-asfalto-100 p-4 font-display text-lg leading-tight font-bold uppercase">
                   Tênis de corrida
                   <span className="mt-0.5 block font-sans text-sm font-normal text-asfalto-500 normal-case">
                     E outros itens para correr
@@ -734,8 +735,8 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
             title="O que você ganha"
             text="Tudo isso por um valor fixo por mês."
           />
-          <div className="grid gap-6 md:grid-cols-[1fr_22rem]">
-            <ul className="grid auto-rows-fr gap-4">
+          <div className="grid gap-8 lg:grid-cols-5">
+            <ul className="grid auto-rows-fr gap-4 lg:col-span-3">
               {perks.map((p) => (
                 <li
                   key={p.title}
@@ -755,7 +756,7 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
               ))}
             </ul>
 
-            <aside className="flex flex-col rounded-2xl bg-white p-6 ring-2 ring-largada-500">
+            <aside className="flex flex-col rounded-2xl bg-white p-6 ring-2 ring-largada-500 lg:col-span-2">
               <p className="text-sm font-semibold text-asfalto-500">
                 Plano mensal
               </p>
