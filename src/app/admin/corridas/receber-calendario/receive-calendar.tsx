@@ -50,6 +50,8 @@ export function ReceiveCalendar() {
     let done = false;
     const onMessage = async (e: MessageEvent) => {
       if (done || e.source !== opener || e.data?.tipo !== CALENDAR_TYPE) return;
+      // Só os calendários suportados: outro site não consegue empurrar provas para cá
+      if (!/^https:\/\/([\w-]+\.)*(ticketsports|yescom)\.com\.br$/.test(e.origin)) return;
       done = true;
       const parsed = toRows(e.data.cards);
       // Descarta as que já foram enviadas antes

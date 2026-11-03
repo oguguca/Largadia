@@ -19,8 +19,14 @@ export function ReceiveAndForm({ save }: { save: (prev: FormState, form: FormDat
     let done = false;
     const onMessage = async (e: MessageEvent) => {
       if (done || e.source !== opener || e.data?.tipo !== BOOKMARKLET_TYPE) return;
-      done = true;
       const { url, head, text, pdfs } = e.data;
+      // A página só pode falar por ela mesma: o endereço informado precisa ser do site que mandou a mensagem
+      let sameOrigin = false;
+      try {
+        sameOrigin = new URL(String(url)).origin === e.origin;
+      } catch {}
+      if (!sameOrigin) return;
+      done = true;
       setState(await draftFromPage({ url, head, text, pdfs }));
       setWaiting(false);
     };

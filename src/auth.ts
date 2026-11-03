@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { Role } from "@/generated/prisma/enums";
 
 declare module "next-auth" {
@@ -31,6 +32,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(raw) {
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
+        // O limite fica aqui, e não só na tela de login: /api/auth/callback/credentials também chama authorize
+        const ip = await clientIp();
+        const [byIp, byEmail] = await Promise.all([
+          rateLimit(`auth:ip:${ip}`, 20, 900),
+          rateLimit(`auth:email:${parsed.data.email}`, 10, 900),
+        ]);
+        if (!byIp || !byEmail) return null;
         const user = await db.user.findUnique({ where: { email: parsed.data.email } });
         if (!user?.passwordHash) return null;
         if (!(await verifyPassword(parsed.data.password, user.passwordHash))) return null;

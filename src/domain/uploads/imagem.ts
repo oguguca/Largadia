@@ -18,13 +18,14 @@ export async function saveUploadedImage(file: FormDataEntryValue | null): Promis
   if (file.size > MAX_IMAGE_BYTES) return { error: "Imagem grande demais: envie uma de até 3,5 MB." };
   const bytes = Buffer.from(await file.arrayBuffer());
   // O tipo informado pelo navegador nem sempre vem certo (no Windows pode vir vazio): quem decide é o conteúdo
-  const format = await sharp(bytes)
+  const format = await sharp(bytes, { limitInputPixels: 40_000_000 })
     .metadata()
     .then((m) => m.format)
     .catch(() => undefined);
   if (!format || !ACCEPTED_FORMATS.has(format)) return { error: "Envie um arquivo de imagem (JPG, PNG, WebP, GIF ou AVIF)." };
   try {
-    const { data, info } = await sharp(bytes, { animated: false })
+    // Limite de pixels: um PNG pequeno pode descomprimir para gigabytes de memória
+  const { data, info } = await sharp(bytes, { animated: false, limitInputPixels: 40_000_000 })
       .rotate() // respeita a orientação da foto do celular
       .resize({ width: MAX_SIDE, height: MAX_SIDE, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 82 })

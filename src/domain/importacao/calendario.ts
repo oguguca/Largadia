@@ -16,9 +16,10 @@ const SOURCE_NAMES: Record<CalendarSource, string> = { ticketsports: "Ticket Spo
 /** Cartão de um calendário (Ticket Sports ou Yescom), como o favorito lê da tela. */
 export const calendarCardSchema = z.object({
   source: z.enum(CALENDAR_SOURCES).default("ticketsports"),
-  url: z.string().url().max(500),
+  // .url() aceita javascript:, então o esquema é conferido à parte
+  url: z.string().url().max(500).refine((v) => /^https?:\/\//i.test(v), "Link precisa ser http(s)"),
   name: z.string().trim().min(1).max(200),
-  image: z.string().url().max(500).optional().catch(undefined),
+  image: z.string().url().max(500).refine((v) => /^https?:\/\//i.test(v)).optional().catch(undefined),
   lines: z.array(z.string().max(300)).max(10),
   /** Situação marcada no cartão (Yescom: aberto, esgotado, breve, expo, atencao) */
   status: z.string().trim().max(30).optional().catch(undefined),

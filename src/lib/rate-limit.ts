@@ -2,10 +2,15 @@ import "server-only";
 import { headers } from "next/headers";
 import { db } from "./db";
 
-/** IP do cliente atrás do proxy da Vercel. */
+/** IP do cliente atrás do proxy da Vercel. Os cabeçalhos da própria Vercel vêm antes: o cliente não consegue forjá-los. */
 export async function clientIp(): Promise<string> {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "desconhecido";
+  return (
+    h.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+    h.get("x-real-ip") ||
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "desconhecido"
+  );
 }
 
 /**
