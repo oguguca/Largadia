@@ -9,7 +9,7 @@ import { requireAdmin } from "@/lib/session";
 import { isPremium } from "@/domain/assinatura/status";
 import { saveUploadedImage } from "@/domain/uploads/imagem";
 import { sorteios } from "@/config/sorteios";
-import { drawBlockReason, pickWinner, raffleSchema } from "@/domain/sorteios/sorteio";
+import { cooldownUntil, drawBlockReason, pickWinner, raffleSchema } from "@/domain/sorteios/sorteio";
 
 export type RaffleFormState = { errors?: Record<string, string[]>; values?: Record<string, string> } | null;
 
@@ -67,13 +67,17 @@ export async function drawRaffle(id: string) {
   });
   if (!raffle) redirect("/admin/sorteios");
   // O prêmio só vai para quem está com o Premium ativo na hora do sorteio e fora da carência de ganhador
+  // Mesma conta da mensagem que o corredor vê (cooldownUntil), com um dia de folga na busca
+  const now = new Date();
   const recentWinners = new Set(
     (
       await db.raffle.findMany({
-        where: { drawnAt: { gt: new Date(Date.now() - sorteios.carenciaGanhadorDias * 86_400_000) }, winnerId: { not: null } },
-        select: { winnerId: true },
+        where: { drawnAt: { gt: new Date(now.getTime() - (sorteios.carenciaGanhadorDias + 1) * 86_400_000) }, winnerId: { not: null } },
+        select: { winnerId: true, drawnAt: true },
       })
-    ).map((r) => r.winnerId),
+    )
+      .filter((r) => (cooldownUntil(r.drawnAt) ?? now) > now)
+      .map((r) => r.winnerId),
   );
   const eligible = raffle.entries.filter((e) => isPremium(e.user) && !recentWinners.has(e.userId));
   const blocked =

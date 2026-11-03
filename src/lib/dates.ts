@@ -35,8 +35,12 @@ export function weekendWindow(now: Date): { start: Date; end: Date } {
 export function parseDateBrt(value: string): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!m) return null;
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], -BRT_OFFSET_HOURS));
-  return Number.isNaN(d.getTime()) ? null : d;
+  const [y, mo, day] = [+m[1], +m[2], +m[3]];
+  const d = new Date(Date.UTC(y, mo - 1, day, -BRT_OFFSET_HOURS));
+  // Date.UTC aceita 30/02 e 13/2026 e "transborda" para o mês seguinte: aqui isso é data inválida
+  const check = new Date(Date.UTC(y, mo - 1, day));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== day) return null;
+  return d;
 }
 
 export function addDays(date: Date, days: number): Date {

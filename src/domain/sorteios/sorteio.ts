@@ -86,7 +86,12 @@ export function entryBlockReason(
 
 /** Até quando quem ganhou fica sem poder participar de outro sorteio (null = nunca ganhou). */
 export function cooldownUntil(lastWinAt: Date | null): Date | null {
-  return lastWinAt ? new Date(lastWinAt.getTime() + sorteios.carenciaGanhadorDias * 86_400_000) : null;
+  if (!lastWinAt) return null;
+  const end = lastWinAt.getTime() + sorteios.carenciaGanhadorDias * 86_400_000;
+  // Arredonda para a meia-noite seguinte em Brasília: a mensagem "a partir de DD/MM" vale o dia inteiro
+  const brtDay = 86_400_000;
+  const shift = 3 * 3600_000;
+  return new Date(Math.ceil((end - shift) / brtDay) * brtDay + shift);
 }
 
 /** Dias inteiros que faltam para voltar a participar (0 = já pode). */

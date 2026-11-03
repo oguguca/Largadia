@@ -21,13 +21,15 @@ export function isPremium(user: { subscriptionStatus: string | null; subscriptio
 
 /** Soma meses no calendário, mantendo o dia (31/01 + 1 mês = 28 ou 29/02). */
 export function addMonths(date: Date, months: number): Date {
-  const d = new Date(date);
+  // A conta é feita no dia de Brasília: um Pix pago às 22h do dia 30 vence no dia 30 do mês seguinte, não no 29
+  const shift = 3 * 3600_000;
+  const d = new Date(date.getTime() - shift);
   const day = d.getUTCDate();
   d.setUTCDate(1);
   d.setUTCMonth(d.getUTCMonth() + months);
   const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
   d.setUTCDate(Math.min(day, lastDay));
-  return d;
+  return new Date(d.getTime() + shift);
 }
 
 /** Novo fim do Premium após um Pix: renovar antes de vencer soma ao período atual, não perde dias. */

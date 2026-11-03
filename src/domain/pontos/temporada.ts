@@ -67,11 +67,13 @@ type Total = { userId: string; points: number; races: number; km: number };
  * Quem empata nos dois divide a posição (1, 2, 2, 4).
  */
 export function rankTotals<T extends Total>(totals: T[]): (T & { position: number })[] {
-  const sorted = [...totals].sort((a, b) => b.points - a.points || b.km - a.km);
+  // Km somado do banco vem em ponto flutuante (10,1 + 21,1 ≠ 31,2): compara em centésimos
+  const km = (t: Total) => Math.round(t.km * 100);
+  const sorted = [...totals].sort((a, b) => b.points - a.points || km(b) - km(a));
   let position = 0;
   return sorted.map((t, i) => {
     const prev = sorted[i - 1];
-    if (!prev || prev.points !== t.points || prev.km !== t.km) position = i + 1;
+    if (!prev || prev.points !== t.points || km(prev) !== km(t)) position = i + 1;
     return { ...t, position };
   });
 }

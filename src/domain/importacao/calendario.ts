@@ -65,7 +65,8 @@ function dateAfter(lines: string[], label: RegExp): string | undefined {
   for (const line of lines) {
     if (!label.test(line.normalize("NFC"))) continue;
     const m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(line);
-    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    // 31/02 e afins contam como "sem data", em vez de virar março
+    if (m && parseDateBrt(`${m[3]}-${m[2]}-${m[1]}`)) return `${m[3]}-${m[2]}-${m[1]}`;
   }
   return undefined;
 }
@@ -81,7 +82,8 @@ export function parseWrittenDate(text: string): string | undefined {
   const m = /(\d{1,2})(?:\s*(?:a|e|-)\s*\d{1,2})?\s+(?:de\s+)?([a-z]+)\s+(?:de\s+)?(\d{4})/.exec(plain);
   const month = m && MONTHS[m[2]];
   if (!m || !month) return undefined;
-  return `${m[3]}-${String(month).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  const iso = `${m[3]}-${String(month).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return parseDateBrt(iso) ? iso : undefined;
 }
 
 /** Capitais, para quando o calendário só informa o local e a UF. */

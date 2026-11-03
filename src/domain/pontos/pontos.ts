@@ -62,6 +62,8 @@ export const claimSchema = z
       .max(500),
   })
   .superRefine((v, ctx) => {
+    // Distância inválida já tem o próprio erro; sem ela o ritmo não faz sentido
+    if (!(v.distanceKm > 0)) return;
     const pace = v.finishTime / v.distanceKm;
     if (pace < PACE_LIMITS.fastest || pace > PACE_LIMITS.slowest) {
       ctx.addIssue({ code: "custom", path: ["finishTime"], message: "Tempo incompatível com a distância informada" });

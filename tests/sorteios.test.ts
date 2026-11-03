@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cooldownDaysLeft, drawBlockReason, entryBlockReason, participantStatus, pickWinner, raffleSchema } from "@/domain/sorteios/sorteio";
+import { cooldownDaysLeft, cooldownUntil, drawBlockReason, entryBlockReason, participantStatus, pickWinner, raffleSchema } from "@/domain/sorteios/sorteio";
 
 const now = new Date("2026-11-10T12:00:00Z");
 const open = { status: "ABERTO" as const, entriesCloseAt: new Date("2026-11-20T12:00:00Z"), premiumOnly: true };
@@ -82,7 +82,9 @@ describe("carência de quem ganhou", () => {
   it("bloqueia quem ganhou há menos de 60 dias e libera depois", () => {
     expect(entryBlockReason(raffle, { premium: true, lastWinAt: new Date("2026-10-01T12:00:00Z") }, now)).toMatch(/ganhou um sorteio/);
     expect(entryBlockReason(raffle, { premium: true, lastWinAt: new Date("2026-08-01T12:00:00Z") }, now)).toBeNull();
-    expect(cooldownDaysLeft(new Date("2026-10-01T12:00:00Z"), now)).toBe(20);
+    // Ganhou 01/10 às 9h (Brasília): libera às 00h de 01/12, 21 dias depois de 10/11
+    expect(cooldownDaysLeft(new Date("2026-10-01T12:00:00Z"), now)).toBe(21);
+    expect(cooldownUntil(new Date("2026-10-01T12:00:00Z"))!.toISOString()).toBe("2026-12-01T03:00:00.000Z");
     expect(cooldownDaysLeft(null, now)).toBe(0);
   });
 });
