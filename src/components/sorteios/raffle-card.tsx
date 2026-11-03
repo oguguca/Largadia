@@ -35,20 +35,31 @@ export function RaffleCard({
   const canEnter = viewer === "premium" || (viewer === "usuario" && !raffle.premiumOnly);
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-asfalto-100">
-      {raffle.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- imagem cadastrada no admin, de domínio arbitrário
-        <img src={raffle.imageUrl} alt={raffle.prize} loading="lazy" className="h-44 w-full object-cover" />
-      ) : (
-        <div className="faixa-largada h-3" aria-hidden />
-      )}
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      {/* Imagem inteira (sem corte) num quadro de altura fixa */}
+      <div>
+        {raffle.imageUrl ? (
+          <div className="grid aspect-[4/3] place-items-center bg-gradient-to-b from-asfalto-50 to-white p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- imagem cadastrada no admin, de domínio arbitrário */}
+            <img src={raffle.imageUrl} alt={raffle.prize} loading="lazy" className="h-full w-full object-contain" />
+          </div>
+        ) : (
+          <div className="faixa-largada aspect-[4/3] opacity-90" aria-hidden />
+        )}
+      </div>
+      <div className="flex flex-1 flex-col gap-3 border-t border-asfalto-100 p-4">
         <div>
-          <p className="text-xs font-semibold tracking-wide text-largada-600 uppercase">
-            {raffle.premiumOnly ? "Exclusivo Premium" : "Aberto a todos"} ·{" "}
-            {raffle.entriesCloseAt ? `até ${formatDateShort(raffle.entriesCloseAt)}` : "participações abertas"}
-          </p>
+          <div className="mb-2 flex flex-wrap gap-2 text-xs font-semibold">
+            <span className={`rounded-full px-2.5 py-1 ${raffle.premiumOnly ? "bg-asfalto-950 text-white" : "bg-pace-500 text-asfalto-950"}`}>
+              {raffle.premiumOnly ? "Exclusivo Premium" : "Aberto a todos"}
+            </span>
+            <span className="rounded-full bg-asfalto-100 px-2.5 py-1 text-asfalto-700">
+              {raffle.entriesCloseAt ? `Até ${formatDateShort(raffle.entriesCloseAt)}` : "Participações abertas"}
+            </span>
+          </div>
           <h3 className="font-display text-2xl leading-tight font-bold uppercase">{raffle.prize}</h3>
-          <p className="text-sm text-asfalto-500">{raffle.title}</p>
+          {raffle.title.trim().toLowerCase() !== raffle.prize.trim().toLowerCase() && (
+            <p className="text-sm text-asfalto-500">{raffle.title}</p>
+          )}
           <LiveEntryCount key={raffle._count.entries} raffleId={raffle.id} initial={raffle._count.entries} />
           {raffle.drawAtSubscribers && <SubscriberGoal goal={raffle.drawAtSubscribers} current={raffle.activeSubscribers} />}
           {raffle.race && (
