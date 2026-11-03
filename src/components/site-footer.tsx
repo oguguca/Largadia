@@ -16,7 +16,7 @@ export function SiteFooter() {
           <Link href="/termos" className="hover:text-white">Termos de uso</Link>
           <Link href="/privacidade" className="hover:text-white">Privacidade</Link>
         </nav>
-        <p className="text-xs text-asfalto-500 md:text-right">
+        <p className="text-xs text-asfalto-300 md:text-right">
           As informações das provas são fornecidas pelos organizadores. Confira sempre o site oficial antes de se inscrever.
         </p>
       </div>

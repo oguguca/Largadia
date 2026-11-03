@@ -18,7 +18,7 @@ const brl = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "c
 
 export const metadata: Metadata = { title: "Minha conta", robots: { index: false } };
 
-const perks = ["Pontos a cada corrida", "Sorteios de inscrições", "Cupons exclusivos"];
+const perks = ["Pontos a cada corrida no ranking da temporada", "Sorteios de prêmios só para assinantes", "Cupons de desconto em provas parceiras"];
 
 export default function ContaPage(props: PageProps<"/conta">) {
   return (
@@ -111,7 +111,7 @@ async function Conta({ searchParams }: { searchParams: PageProps<"/conta">["sear
             {viaPix && user.subscriptionEndsAt ? (
               <h2 className="mt-1 font-display text-3xl font-extrabold italic uppercase">Seu Premium acabou</h2>
             ) : (
-              <h2 className="mt-1 font-display text-3xl font-extrabold italic uppercase">Corra. Pontue.</h2>
+              <h2 className="mt-1 font-display text-3xl font-extrabold italic uppercase">Corra, pontue, ganhe</h2>
             )}
             {viaPix && user.subscriptionEndsAt && (
               <p className="mt-1 text-sm text-asfalto-300">
