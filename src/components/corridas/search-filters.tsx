@@ -1,4 +1,4 @@
-import { distanceBuckets, priceOptions, raceTypeLabels, UFS } from "@/config/corridas";
+import { distanceBuckets, raceTypeLabels, UFS } from "@/config/corridas";
 import type { SearchFilters } from "@/domain/corridas/filtros";
 
 const field = "w-full rounded-lg border border-asfalto-300 bg-white px-3 py-2 text-sm";
@@ -63,18 +63,6 @@ export function SearchFiltersForm({ filters }: { filters: SearchFilters }) {
           <input type="date" name="ate" defaultValue={filters.ate} className={field} />
         </label>
       </div>
-
-      <label className="block space-y-1.5">
-        <span className={label}>Preço</span>
-        <select name="preco" defaultValue={filters.preco?.toString() ?? ""} className={field}>
-          <option value="">Qualquer valor</option>
-          {priceOptions.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </label>
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="realizadas" value="1" defaultChecked={filters.realizadas} />

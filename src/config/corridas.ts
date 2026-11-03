@@ -27,13 +27,6 @@ export const distanceBuckets = {
 
 export type DistanceBucket = keyof typeof distanceBuckets;
 
-export const priceOptions = [
-  { value: "0", label: "Gratuitas" },
-  { value: "100", label: "Até R$ 100" },
-  { value: "200", label: "Até R$ 200" },
-  { value: "350", label: "Até R$ 350" },
-] as const;
-
 export const radiusOptions = [10, 25, 50, 100, 200] as const;
 
 export const UFS = [
