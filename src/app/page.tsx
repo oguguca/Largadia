@@ -26,7 +26,10 @@ import { db } from "@/lib/db";
 import { isPremium } from "@/domain/assinatura/status";
 import { formatDateShort } from "@/lib/format";
 
-const price = (PREMIUM_PRICE_CENTS / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const price = (PREMIUM_PRICE_CENTS / 100).toLocaleString("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
 
 /** Quem está vendo a página: decide se os convites viram atalhos da área Premium. Uma consulta por acesso. */
 const getViewer = cache(async () => {
@@ -61,9 +64,7 @@ export default function Home() {
                 placeholder="Cidade, prova ou organizador"
                 className="min-w-0 flex-1 rounded-xl px-3 text-asfalto-950 outline-none"
               />
-              <button className="rounded-xl bg-largada-500 px-5 py-3 font-semibold text-asfalto-950 hover:bg-largada-600">
-                Buscar
-              </button>
+              <button className="rounded-xl bg-largada-500 px-5 py-3 font-semibold text-asfalto-950 hover:bg-largada-600">Buscar</button>
             </form>
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
               {[
@@ -74,25 +75,25 @@ export default function Home() {
                 ["Trail", "/busca?tipo=TRAIL"],
                 ["Noturnas", "/busca?tipo=NOTURNA"],
               ].map(([label, href]) => (
-                <Link key={href} href={href} className="rounded-full border border-white/20 px-3 py-1 hover:border-pace-500 hover:text-pace-500">
+                <Link
+                  key={href}
+                  href={href}
+                  className="rounded-full border border-white/20 px-3 py-1 hover:border-pace-500 hover:text-pace-500"
+                >
                   {label}
                 </Link>
               ))}
             </div>
-            <a
-              href="#premium"
-              className="mt-8 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 py-2 pr-4 pl-2 text-sm text-asfalto-300 hover:border-largada-500/60 hover:text-white"
-            >
-              <span className="rounded-lg bg-largada-500 px-2 py-1 font-display font-bold text-asfalto-950 uppercase">Premium</span>
-              Suas corridas valem pontos. O 1º da temporada ganha {temporada.premio}.
-            </a>
+            <Suspense>
+              <HeroPremium />
+            </Suspense>
           </div>
         </div>
       </section>
 
       <div className="mx-auto max-w-6xl space-y-16 px-4 py-12">
         <Suspense fallback={<div className="h-80 animate-pulse rounded-3xl bg-asfalto-100" />}>
-          <Plans />
+          <PlansOrMember />
         </Suspense>
 
         <Suspense>
@@ -138,9 +139,113 @@ export default function Home() {
 
 function Check({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={`mt-0.5 size-5 shrink-0 ${className}`} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      className={`mt-0.5 size-5 shrink-0 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M5 12.5l4.5 4.5L19 7.5" />
     </svg>
+  );
+}
+
+/** Convite do topo: para quem não assina, chama para o Premium; para o assinante, mostra a posição dele. */
+async function HeroPremium() {
+  const viewer = await getViewer();
+  const pill =
+    "mt-8 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 py-2 pr-4 pl-2 text-sm text-asfalto-300 hover:border-largada-500/60 hover:text-white";
+  const tag = "rounded-lg bg-largada-500 px-2 py-1 font-display font-bold text-asfalto-950 uppercase";
+  if (!viewer.premium) {
+    return (
+      <a href="#premium" className={pill}>
+        <span className={tag}>Premium</span>
+        Suas corridas valem pontos. O 1º da temporada ganha {temporada.premio}.
+      </a>
+    );
+  }
+  const { viewer: me } = await getPointsRanking(viewer.id, seasonOf(new Date()), 0);
+  return (
+    <a href="#sua-temporada" className={pill}>
+      <span className={tag}>{me ? `${me.position}º` : "Premium"}</span>
+      {me?.points ? `Você tem ${me.points} pontos nesta temporada.` : "Registre sua primeira corrida e comece a pontuar."}
+    </a>
+  );
+}
+
+async function PlansOrMember() {
+  const viewer = await getViewer();
+  return viewer.premium && viewer.id ? <MemberSummary userId={viewer.id} /> : <Plans />;
+}
+
+/** Para o assinante, no lugar da comparação de planos: a temporada dele e os atalhos do dia a dia. */
+async function MemberSummary({ userId }: { userId: string }) {
+  const now = new Date();
+  const season = seasonOf(now);
+  const [{ rows, viewer: me }, pending] = await Promise.all([
+    getPointsRanking(userId, season, 1000),
+    db.pointClaim.count({ where: { userId, status: "PENDENTE" } }),
+  ]);
+  const left = daysLeft(season, now);
+  const leader = rows[0];
+  const stats = [
+    ["Posição", me ? `${me.position}º` : "—", me ? `de ${rows.length}` : ""],
+    ["Pontos", (me?.points ?? 0).toLocaleString("pt-BR"), leader && me && leader.userId !== me.userId ? `1º tem ${leader.points}` : ""],
+    ["Provas", String(me?.races ?? 0), "aprovadas"],
+    ["Km", (me?.km ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }), "na temporada"],
+  ] as const;
+
+  return (
+    <section
+      id="sua-temporada"
+      aria-labelledby="sua-temporada-titulo"
+      className="relative scroll-mt-20 overflow-hidden rounded-3xl bg-asfalto-950 p-6 text-white md:p-8"
+    >
+      <div className="faixa-largada absolute inset-x-0 top-0 h-1.5" aria-hidden />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 id="sua-temporada-titulo" className="font-display text-3xl font-bold uppercase md:text-4xl">
+            Sua temporada
+          </h2>
+          <p className="mt-1 text-asfalto-300">
+            {season.label}, termina em {formatDateShort(lastDay(season))}.{" "}
+            <span className="text-pace-500">{left === 0 ? "Último dia" : `Faltam ${left} ${left === 1 ? "dia" : "dias"}`}</span> para subir
+            no ranking. O 1º ganha {temporada.premio}.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+          <Link
+            href="/assinatura#registrar"
+            className="rounded-xl bg-largada-500 px-5 py-3 font-semibold text-asfalto-950 hover:bg-largada-600"
+          >
+            Registrar uma corrida
+          </Link>
+          <Link href="/assinatura" className="font-semibold underline-offset-4 hover:underline">
+            Abrir a área Premium
+          </Link>
+        </div>
+      </div>
+
+      <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-4">
+        {stats.map(([label, value, note]) => (
+          <div key={label} className="bg-asfalto-950 p-4 md:p-5">
+            <dt className="text-xs text-asfalto-300">{label}</dt>
+            <dd className="mt-1 font-display text-4xl leading-none font-extrabold tabular-nums">{value}</dd>
+            {note && <dd className="mt-1 text-xs text-asfalto-300">{note}</dd>}
+          </div>
+        ))}
+      </dl>
+
+      {pending > 0 && (
+        <p className="mt-4 text-sm text-asfalto-300">
+          {pending === 1 ? "1 corrida sua está" : `${pending} corridas suas estão`} em análise. Os pontos entram assim que forem aprovadas.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -149,7 +254,9 @@ async function Plans() {
   const [states, viewer] = await Promise.all([getStatesWithRaces(), getViewer()]);
   const total = states.reduce((n, s) => n + s.count, 0);
   const free = [
-    total ? `${total.toLocaleString("pt-BR")} provas de ${states.length} estados num calendário só` : "Provas de todo o Brasil num calendário só",
+    total
+      ? `${total.toLocaleString("pt-BR")} provas de ${states.length} estados num calendário só`
+      : "Provas de todo o Brasil num calendário só",
     "Busca por cidade, distância, tipo e data",
     "Inscrição direto no site oficial da prova, sem taxa do Largadia",
   ];
@@ -212,14 +319,20 @@ async function Plans() {
           <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
             {viewer.premium ? (
               <>
-                <Link href="/assinatura#registrar" className="rounded-xl bg-largada-500 px-5 py-3 font-semibold text-asfalto-950 hover:bg-largada-600">
+                <Link
+                  href="/assinatura#registrar"
+                  className="rounded-xl bg-largada-500 px-5 py-3 font-semibold text-asfalto-950 hover:bg-largada-600"
+                >
                   Registrar uma corrida
                 </Link>
                 <span className="text-sm text-pace-500">Você já é Premium</span>
               </>
             ) : (
               <>
-                <Link href="/assinatura#plano" className="rounded-xl bg-largada-500 px-5 py-3 font-semibold text-asfalto-950 hover:bg-largada-600">
+                <Link
+                  href="/assinatura#plano"
+                  className="rounded-xl bg-largada-500 px-5 py-3 font-semibold text-asfalto-950 hover:bg-largada-600"
+                >
                   Assinar o Premium
                 </Link>
                 <span className="text-sm text-asfalto-300">No cartão ou no Pix pré-pago</span>
@@ -403,49 +516,53 @@ async function PremiumBand() {
           <div className="lg:col-span-2">
             <p className="font-display text-xl font-bold text-largada-500 uppercase">Premium</p>
             <h2 id="premium-titulo" className="mt-1 font-display text-5xl leading-[0.9] font-extrabold uppercase italic md:text-6xl">
-              Sua próxima corrida vale pontos
+              {viewer.premium ? "A disputa da temporada" : "Sua próxima corrida vale pontos"}
             </h2>
             <p className="mt-4 text-asfalto-300">
-              Cada prova concluída rende {pontos.porProva} pontos, mais {pontos.porKm} por km. Quem terminar a temporada em 1º ganha{" "}
-              {temporada.premio}. No empate, vence quem correu mais km.
+              {viewer.premium
+                ? `Cada corrida aprovada soma ${pontos.porProva} pontos, mais ${pontos.porKm} por km. Registre todas as provas que correr para subir na tabela.`
+                : `Cada prova concluída rende ${pontos.porProva} pontos, mais ${pontos.porKm} por km. Quem terminar a temporada em 1º ganha ${temporada.premio}.`}{" "}
+              No empate, vence quem correu mais km.
             </p>
 
-            <dl className="mt-8 grid grid-cols-3 gap-4 border-y border-white/10 py-5">
-              <div>
-                <dt className="text-xs text-asfalto-300">Temporada</dt>
-                <dd className="mt-1 font-display text-2xl font-bold">{season.label}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-asfalto-300">Termina em</dt>
-                <dd className="mt-1 font-display text-2xl font-bold">{formatDateShort(lastDay(season))}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-asfalto-300">Faltam</dt>
-                <dd className="mt-1 font-display text-2xl font-bold text-pace-500 tabular-nums">
-                  {left === 0 ? "último dia" : `${left} ${left === 1 ? "dia" : "dias"}`}
-                </dd>
-              </div>
-            </dl>
+            {/* O assinante já vê a temporada e os atalhos no bloco "Sua temporada", lá em cima */}
+            {!viewer.premium && (
+              <dl className="mt-8 grid grid-cols-3 gap-4 border-y border-white/10 py-5">
+                <div>
+                  <dt className="text-xs text-asfalto-300">Temporada</dt>
+                  <dd className="mt-1 font-display text-2xl font-bold">{season.label}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-asfalto-300">Termina em</dt>
+                  <dd className="mt-1 font-display text-2xl font-bold">{formatDateShort(lastDay(season))}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-asfalto-300">Faltam</dt>
+                  <dd className="mt-1 font-display text-2xl font-bold text-pace-500 tabular-nums">
+                    {left === 0 ? "último dia" : `${left} ${left === 1 ? "dia" : "dias"}`}
+                  </dd>
+                </div>
+              </dl>
+            )}
             {champion && (
               <p className="mt-4 text-sm text-asfalto-300">
                 Campeão da temporada anterior: <strong className="text-amber-400">👑 {champion.name}</strong> ({champion.points} pontos)
               </p>
             )}
 
-            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
-              {viewer.premium ? (
-                <Link href="/assinatura#registrar" className="rounded-xl bg-largada-500 px-6 py-3 font-semibold text-asfalto-950 hover:bg-largada-600">
-                  Registrar uma corrida
-                </Link>
-              ) : (
-                <Link href="/assinatura#plano" className="rounded-xl bg-largada-500 px-6 py-3 font-semibold text-asfalto-950 hover:bg-largada-600">
+            {!viewer.premium && (
+              <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <Link
+                  href="/assinatura#plano"
+                  className="rounded-xl bg-largada-500 px-6 py-3 font-semibold text-asfalto-950 hover:bg-largada-600"
+                >
                   Assinar por {price}/mês
                 </Link>
-              )}
-              <Link href="/assinatura" className="font-semibold underline-offset-4 hover:underline">
-                {viewer.premium ? "Abrir a área Premium" : "Como funciona"}
-              </Link>
-            </div>
+                <Link href="/assinatura" className="font-semibold underline-offset-4 hover:underline">
+                  Como funciona
+                </Link>
+              </div>
+            )}
           </div>
 
           <div className="lg:col-span-3">
