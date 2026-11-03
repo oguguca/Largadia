@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { parseDateBrt } from "@/lib/dates";
 import { customRaceSchema, OTHER_RACE } from "@/domain/pontos/pontos";
+import { saveUploadedImage } from "@/domain/uploads/imagem";
 import { hasStarted, runLogData, runLogSchema } from "./biblioteca";
 
 export type RunLogState = {
@@ -101,14 +102,46 @@ export async function updateRunLog(userId: string, logId: string, form: FormData
   return { ok: true, id: log.id, raceId: log.raceId };
 }
 
-/** Tira a corrida da estante. Os pontos, se houver, não mudam. */
+/** Tira a corrida da estante, com a foto dela. Os pontos, se houver, não mudam. */
 export async function deleteRunLog(userId: string, logId: string): Promise<{ raceId: string | null } | null> {
   const id = z.string().cuid().safeParse(logId);
   if (!id.success) return null;
-  const log = await db.runLog.findFirst({ where: { id: id.data, userId }, select: { id: true, raceId: true } });
+  const log = await db.runLog.findFirst({ where: { id: id.data, userId }, select: { id: true, raceId: true, photoId: true } });
   if (!log) return null;
-  await db.runLog.delete({ where: { id: log.id } });
+  await db.$transaction([
+    db.runLog.delete({ where: { id: log.id } }),
+    ...(log.photoId ? [db.upload.deleteMany({ where: { id: log.photoId } })] : []),
+  ]);
   return { raceId: log.raceId };
+}
+
+/** Lado maior da foto da capa: a estante mostra capas de até ~300 px, e a tela da corrida um pouco mais. */
+const PHOTO_SIDE = 900;
+
+/** Endereço em que o site serve uma foto enviada. */
+export const photoUrl = (photoId: string) => `/api/imagens/${photoId}`;
+
+/**
+ * Troca a foto da capa (medalha, largada…) de uma corrida da estante. Sem arquivo, tira a foto.
+ * A foto antiga é apagada do banco.
+ */
+export async function setRunPhoto(userId: string, logId: string, file: FormDataEntryValue | null): Promise<{ error?: string }> {
+  const id = z.string().cuid().safeParse(logId);
+  if (!id.success) return { error: "Corrida não encontrada." };
+  const log = await db.runLog.findFirst({ where: { id: id.data, userId }, select: { id: true, photoId: true } });
+  if (!log) return { error: "Corrida não encontrada." };
+  let photoId: string | null = null;
+  if (file) {
+    const saved = await saveUploadedImage(file, PHOTO_SIDE);
+    if (!saved) return { error: "Escolha uma foto." };
+    if ("error" in saved) return { error: saved.error };
+    photoId = saved.url.split("/").pop()!;
+  }
+  await db.$transaction([
+    db.runLog.update({ where: { id: log.id }, data: { photoId } }),
+    ...(log.photoId ? [db.upload.deleteMany({ where: { id: log.photoId } })] : []),
+  ]);
+  return {};
 }
 
 /**

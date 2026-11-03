@@ -283,14 +283,16 @@ model RunLog {
   distanceKm         Float?
   /// Tempo de conclusão, em segundos
   finishSeconds      Int?
-  /// Nota geral de 1 a 5; vazia enquanto a pessoa não avaliou
-  rating             Int?
-  /// Notas opcionais de 1 a 5
-  ratingCourse       Int?
-  ratingOrganization Int?
-  ratingKit          Int?
-  ratingHydration    Int?
+  /// Nota geral de 0,5 a 5, de meia em meia estrela; vazia enquanto a pessoa não avaliou
+  rating             Float?
+  /// Notas opcionais, também de 0,5 a 5
+  ratingCourse       Float?
+  ratingOrganization Float?
+  ratingKit          Float?
+  ratingHydration    Float?
   comment            String?   @db.Text
+  /// Foto enviada pela pessoa (medalha, largada) para a capa; id de Upload, servida em /api/imagens/[id]
+  photoId            String?
   /// Admin escondeu a avaliação da página da prova (continua na estante da pessoa)
   hiddenAt           DateTime?
   createdAt          DateTime  @default(now())

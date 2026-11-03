@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { rateLimit } from "@/lib/rate-limit";
 import { formValues } from "@/domain/pontos/enviar";
-import { addRunLog, deleteRunLog, reviewsTag, updateRunLog, type RunLogState } from "@/domain/biblioteca/salvar";
+import { addRunLog, deleteRunLog, reviewsTag, setRunPhoto, updateRunLog, type RunLogState } from "@/domain/biblioteca/salvar";
 
 export type { RunLogState };
 
@@ -45,6 +45,18 @@ export async function saveRun(logId: string, _prev: RunLogState, form: FormData)
   if (!state.ok) return { ...state, values: formValues(form) };
   refresh(state.raceId);
   return { ok: true, id: state.id };
+}
+
+/** Envia a foto da capa. O botão "Tirar foto" manda o formulário sem arquivo. */
+export async function saveRunPhoto(logId: string, _prev: { error?: string } | null, form: FormData): Promise<{ error?: string; ok?: boolean }> {
+  const user = await requireUser(`/minhas-corridas/${logId}`);
+  const remove = form.get("remover") === "1";
+  if (!remove && !(await rateLimit(`foto:${user.id}`, 30, 86_400))) return { error: TOO_MANY };
+  const result = await setRunPhoto(user.id, logId, remove ? null : form.get("foto"));
+  if (result.error) return result;
+  revalidatePath("/minhas-corridas");
+  revalidatePath(`/minhas-corridas/${logId}`);
+  return { ok: true };
 }
 
 export async function removeRun(logId: string) {

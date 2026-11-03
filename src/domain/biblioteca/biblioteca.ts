@@ -15,7 +15,16 @@ export const COMMENT_MAX = 1000;
 
 /** Campo vazio do formulário vira "não informado". */
 const blank = (v: unknown) => (v === "" || v === null ? undefined : v);
-const stars = z.preprocess(blank, z.coerce.number().int().min(1, "Nota de 1 a 5").max(5, "Nota de 1 a 5").optional());
+/** Nota de 0,5 a 5, de meia em meia estrela. */
+const stars = z.preprocess(
+  blank,
+  z.coerce
+    .number()
+    .min(0.5, "Nota de 0,5 a 5")
+    .max(5, "Nota de 0,5 a 5")
+    .refine((v) => Number.isInteger(v * 2), "Use meia estrela ou estrela inteira")
+    .optional(),
+);
 
 /** Distância, tempo e avaliação de uma corrida da estante. Tudo é opcional, menos a nota geral quando há critério ou comentário. */
 export const runLogSchema = z

@@ -10,10 +10,10 @@ const ACCEPTED_FORMATS = new Set(["jpeg", "png", "webp", "gif", "avif", "heif"])
 export type SavedImage = { url: string } | { error: string };
 
 /**
- * Grava a imagem enviada no banco, reduzida para no máximo 1200 px e convertida para WebP.
+ * Grava a imagem enviada no banco, reduzida para no máximo `maxSide` px (1200) e convertida para WebP.
  * Devolve o endereço em que o site serve a imagem. Arquivo vazio = nenhuma imagem enviada (null).
  */
-export async function saveUploadedImage(file: FormDataEntryValue | null): Promise<SavedImage | null> {
+export async function saveUploadedImage(file: FormDataEntryValue | null, maxSide = MAX_SIDE): Promise<SavedImage | null> {
   if (!(file instanceof File) || file.size === 0) return null;
   if (file.size > MAX_IMAGE_BYTES) return { error: "Imagem grande demais: envie uma de até 3,5 MB." };
   const bytes = Buffer.from(await file.arrayBuffer());
@@ -27,7 +27,7 @@ export async function saveUploadedImage(file: FormDataEntryValue | null): Promis
     // Limite de pixels: um PNG pequeno pode descomprimir para gigabytes de memória
   const { data, info } = await sharp(bytes, { animated: false, limitInputPixels: 40_000_000 })
       .rotate() // respeita a orientação da foto do celular
-      .resize({ width: MAX_SIDE, height: MAX_SIDE, fit: "inside", withoutEnlargement: true })
+      .resize({ width: maxSide, height: maxSide, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 82 })
       .toBuffer({ resolveWithObject: true });
     const saved = await db.upload.create({

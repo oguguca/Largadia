@@ -6,10 +6,13 @@ import { z } from "zod";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { formatDateLong, formatDistance } from "@/lib/format";
-import { RaceVisual } from "@/components/corridas/race-visual";
+import { RunCover } from "@/components/biblioteca/run-cover";
+import { brtDay } from "@/domain/biblioteca/biblioteca";
+import { photoUrl } from "@/domain/biblioteca/salvar";
 import { isPremium } from "@/domain/assinatura/status";
 import { claimBlockReason, claimStatusLabels, formatFinishTime, publicName } from "@/domain/pontos/pontos";
 import { EditRunForm, RemoveRunButton } from "./edit-run-form";
+import { PhotoForm } from "./photo-form";
 
 export const metadata: Metadata = { title: "Avaliar corrida", robots: { index: false } };
 
@@ -57,11 +60,20 @@ async function RunDetail({
         <p className="mt-4 rounded-lg bg-pace-500/20 p-3 text-sm font-semibold">Corrida adicionada à sua estante. Agora dê a sua nota.</p>
       )}
 
-      <div className="mt-4 grid gap-8 md:grid-cols-[14rem_1fr]">
+      <div className="mt-4 grid gap-8 md:grid-cols-[18rem_1fr]">
         <aside className="space-y-3">
-          <div className="aspect-[3/4] overflow-hidden rounded-md bg-asfalto-950 shadow-[5px_6px_0_0_rgb(0_0_0/0.12)] ring-1 ring-asfalto-950/10">
-            <RaceVisual imageUrl={race?.imageUrl ?? null} type={race?.type ?? "RUA"} name={name} eager className="h-full w-full" />
+          <div className="aspect-[4/5] overflow-hidden rounded-md bg-asfalto-950 shadow-[6px_8px_0_0_rgb(0_0_0/0.12)] ring-1 ring-asfalto-950/10">
+            <RunCover
+              photoUrl={log.photoId ? photoUrl(log.photoId) : null}
+              imageUrl={race?.imageUrl ?? null}
+              type={race?.type ?? "RUA"}
+              name={name}
+              year={Number(brtDay(log.raceDate).slice(0, 4))}
+              place={place}
+              eager
+            />
           </div>
+          <PhotoForm id={log.id} hasPhoto={!!log.photoId} hasPoster={!!race?.imageUrl} />
           {race && (
             <Link href={`/corrida/${race.slug}`} className="block text-sm font-semibold text-largada-600 hover:underline">
               Ver a página da prova

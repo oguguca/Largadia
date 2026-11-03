@@ -4,9 +4,10 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { formatDateShort, formatDistance } from "@/lib/format";
-import { RaceVisual } from "@/components/corridas/race-visual";
+import { RunCover } from "@/components/biblioteca/run-cover";
 import { Stars } from "@/components/biblioteca/stars";
 import { brtDay, shelfStats } from "@/domain/biblioteca/biblioteca";
+import { photoUrl } from "@/domain/biblioteca/salvar";
 import { formatFinishTime } from "@/domain/pontos/pontos";
 import type { RaceType } from "@/generated/prisma/enums";
 import { AddRunForm, type ShelfOption } from "./add-run-form";
@@ -28,6 +29,7 @@ type ShelfItem = {
   city: string | null;
   state: string | null;
   imageUrl: string | null;
+  photoUrl: string | null;
   type: RaceType;
   distanceKm: number | null;
   finishSeconds: number | null;
@@ -65,6 +67,7 @@ async function Shelf() {
     city: l.race?.city ?? l.customCity,
     state: l.race?.state ?? l.customState,
     imageUrl: l.race?.imageUrl ?? null,
+    photoUrl: l.photoId ? photoUrl(l.photoId) : null,
     type: l.race?.type ?? "RUA",
     distanceKm: l.distanceKm,
     finishSeconds: l.finishSeconds,
@@ -154,10 +157,10 @@ function YearShelf({ year, runs }: { year: number; runs: ShelfItem[] }) {
           {km > 0 && `, ${km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`}
         </p>
       </div>
-      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      <ul className="mt-4 grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
         {runs.map((r) => (
           <li key={r.id}>
-            <Cover run={r} />
+            <Cover run={r} year={year} />
           </li>
         ))}
       </ul>
@@ -167,33 +170,34 @@ function YearShelf({ year, runs }: { year: number; runs: ShelfItem[] }) {
   );
 }
 
-function Cover({ run }: { run: ShelfItem }) {
+function Cover({ run, year }: { run: ShelfItem; year: number }) {
+  const place = run.city && run.state ? `${run.city}/${run.state}` : null;
   return (
     <Link href={`/minhas-corridas/${run.id}`} className="group block rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-largada-500">
-      <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-asfalto-950 shadow-[5px_6px_0_0_rgb(0_0_0/0.12)] ring-1 ring-asfalto-950/10 transition-transform group-hover:-translate-y-1">
-        <RaceVisual imageUrl={run.imageUrl} type={run.type} name={run.name} className="h-full w-full" />
+      <div className="relative aspect-[4/5] overflow-hidden rounded-md bg-asfalto-950 shadow-[6px_8px_0_0_rgb(0_0_0/0.12)] ring-1 ring-asfalto-950/10 transition-transform group-hover:-translate-y-1">
+        <RunCover photoUrl={run.photoUrl} imageUrl={run.imageUrl} type={run.type} name={run.name} year={year} place={place} />
         {run.distanceKm !== null && (
-          <span className="absolute top-2 left-2 rounded bg-white px-1.5 py-0.5 font-display text-sm font-extrabold text-asfalto-950 tabular-nums shadow">
+          <span className="absolute top-3 left-3 rounded bg-white px-2 py-0.5 font-display text-base font-extrabold text-asfalto-950 tabular-nums shadow">
             {shortKm(run.distanceKm)}
           </span>
         )}
         {run.points !== null && (
-          <span className="absolute top-2 right-2 rounded bg-pace-500 px-1.5 py-0.5 text-xs font-bold text-asfalto-950 tabular-nums shadow">
+          <span className="absolute top-3 right-3 rounded bg-pace-500 px-1.5 py-0.5 text-xs font-bold text-asfalto-950 tabular-nums shadow">
             +{run.points} pts
           </span>
         )}
       </div>
-      <p className="mt-2 line-clamp-2 text-sm leading-tight font-semibold group-hover:text-largada-600">{run.name}</p>
-      <p className="mt-0.5 text-xs text-asfalto-500">
+      <p className="mt-3 line-clamp-2 leading-tight font-semibold group-hover:text-largada-600">{run.name}</p>
+      <p className="mt-1 text-sm text-asfalto-500">
         {formatDateShort(run.date)}
-        {run.city && run.state && ` · ${run.city}/${run.state}`}
+        {place && ` · ${place}`}
         {run.finishSeconds !== null && ` · ${formatFinishTime(run.finishSeconds)}`}
       </p>
-      <div className="mt-1">
+      <div className="mt-1.5">
         {run.rating !== null ? (
-          <Stars value={run.rating} className="h-3.5 w-3.5" />
+          <Stars value={run.rating} className="h-4 w-4" />
         ) : (
-          <span className="text-xs font-semibold text-largada-600">Avaliar</span>
+          <span className="text-sm font-semibold text-largada-600">Avaliar</span>
         )}
       </div>
     </Link>

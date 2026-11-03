@@ -19,9 +19,14 @@ describe("runLogSchema", () => {
     expect(runLogSchema.safeParse({ ratingCourse: "5" }).success).toBe(false);
   });
 
-  it("recusa nota fora de 1 a 5 e tempo impossível", () => {
+  it("aceita meia estrela", () => {
+    expect(runLogData(runLogSchema.parse({ rating: "4.5", ratingKit: "0.5" }))).toMatchObject({ rating: 4.5, ratingKit: 0.5 });
+  });
+
+  it("recusa nota fora de 0,5 a 5, fração que não é meia e tempo impossível", () => {
     expect(runLogSchema.safeParse({ rating: "6" }).success).toBe(false);
     expect(runLogSchema.safeParse({ rating: "0" }).success).toBe(false);
+    expect(runLogSchema.safeParse({ rating: "4.3" }).success).toBe(false);
     expect(runLogSchema.safeParse({ distanceKm: "42.195", finishTime: "20:00" }).success).toBe(false);
     expect(runLogSchema.safeParse({ finishTime: "abc" }).success).toBe(false);
   });
