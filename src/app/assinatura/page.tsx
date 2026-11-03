@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { currentSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { flags } from "@/config/flags";
+import { sorteios } from "@/config/sorteios";
 import { pontos, temporada } from "@/config/pontos";
 import { PIX_PLANS, PREMIUM_PRICE_CENTS } from "@/config/assinatura";
 import { isPremium, PIX_STATUS } from "@/domain/assinatura/status";
@@ -527,18 +528,17 @@ const steps = [
   },
 ];
 
+/** Posições do ranking na página de venda: as vazias aparecem como vaga livre, e a tabela acompanha a altura dos prêmios. */
+const SALES_RANKING_SIZE = 10;
+
 /** Página de venda: o prêmio da temporada, como funciona, o ranking ao vivo e os prêmios dos sorteios. */
 async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
   const now = new Date();
   const season = seasonOf(now);
-  const [{ rows }, raffles] = await Promise.all([
-    getPointsRanking(null, season, 5, { demo: true }),
-    flags.sorteiosAtivos ? getOpenRaffles(6) : Promise.resolve([]),
-  ]);
+  const { rows } = await getPointsRanking(null, season, SALES_RANKING_SIZE, { demo: true });
   const left = daysLeft(season, now);
-  const prizes = raffles.filter((r) => r.imageUrl);
-  // Próxima posição livre no top 5, usada no convite embaixo da tabela
-  const nextFree = rows.length < 5 ? rows.length + 1 : null;
+  // Próxima posição livre no top 10, usada no convite embaixo da tabela
+  const nextFree = rows.length < SALES_RANKING_SIZE ? rows.length + 1 : null;
   const ends = formatDateShort(lastDay(season));
 
   return (
@@ -656,10 +656,12 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
           <div className="flex flex-col lg:col-span-3">
             <SectionHeading
               title="Ranking da temporada"
-              text="Os 5 primeiros agora. No empate, vence quem correu mais km."
+              text="Os 10 primeiros agora. No empate, vence quem correu mais km."
             />
             <RankingTable
               rows={rows}
+              pageSize={SALES_RANKING_SIZE}
+              pager={false}
               empty={
                 <>
                   Ninguém pontuou ainda nesta temporada. A 1ª posição está
@@ -689,53 +691,41 @@ async function SalesPage({ loggedIn }: { loggedIn: boolean }) {
               }
             />
           </div>
+          {/* Tipos de prêmio, e não os sorteios abertos agora: até a pessoa assinar, um deles já pode ter sido sorteado */}
           <div className="flex flex-col lg:col-span-2">
             <SectionHeading
-              title="Prêmios em jogo"
-              text="Sorteios abertos para assinantes agora."
+              title="Prêmios dos sorteios"
+              text="Os sorteios mudam ao longo da temporada. Estes são os prêmios que sorteamos."
             />
-            {prizes.length + temporada.premiosFixos.length ? (
-              <ul
-                className={`grid flex-1 gap-3 ${prizes.length + temporada.premiosFixos.length > 1 ? "grid-cols-2" : ""}`}
-              >
-                {prizes.map((r) => (
-                  <li
-                    key={r.id}
-                    className="flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-asfalto-100"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- imagem cadastrada no admin, de domínio arbitrário */}
-                    <img
-                      src={r.imageUrl!}
-                      alt={r.prize}
-                      loading="lazy"
-                      className="min-h-32 w-full flex-1 bg-white object-contain p-4"
-                    />
-                    <p className="h-24 border-t border-asfalto-100 p-4 font-display text-lg leading-tight font-bold uppercase">
-                      <span className="line-clamp-3">{r.prize}</span>
-                    </p>
-                  </li>
-                ))}
-                {temporada.premiosFixos.map((f) => (
-                  <li
-                    key={f.titulo}
-                    className="flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-asfalto-100"
-                  >
-                    <BibPrize />
-                    <p className="h-24 border-t border-asfalto-100 p-4 font-display text-lg leading-tight font-bold uppercase">
-                      {f.titulo}
-                      <span className="block font-sans text-sm font-normal text-asfalto-500 normal-case">
-                        {f.detalhe}
-                      </span>
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="rounded-2xl bg-white p-6 text-center text-asfalto-500 ring-1 ring-asfalto-100">
-                Novos sorteios de inscrições, tênis e kits entram aqui toda
-                temporada.
-              </div>
-            )}
+            <ul className="grid flex-1 grid-cols-2 grid-rows-[1fr_auto] gap-3">
+              <li className="flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-asfalto-100">
+                <BibPrize />
+                <p className="border-t border-asfalto-100 p-4 font-display text-lg leading-tight font-bold uppercase">
+                  Inscrições em corridas
+                  <span className="mt-0.5 block font-sans text-sm font-normal text-asfalto-500 normal-case">
+                    Provas escolhidas pelo Largadia
+                  </span>
+                </p>
+              </li>
+              <li className="flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-asfalto-100">
+                <div className="grid min-h-32 flex-1 place-items-center bg-asfalto-50 p-4" aria-hidden>
+                  <PrizeShoe className="w-full max-w-44" />
+                </div>
+                <p className="border-t border-asfalto-100 p-4 font-display text-lg leading-tight font-bold uppercase">
+                  Tênis de corrida
+                  <span className="mt-0.5 block font-sans text-sm font-normal text-asfalto-500 normal-case">
+                    E outros itens para correr
+                  </span>
+                </p>
+              </li>
+              <li className="col-span-2 rounded-2xl bg-asfalto-950 p-5 text-sm text-asfalto-300">
+                <p className="font-display text-lg font-bold text-white uppercase">Como participar</p>
+                <p className="mt-1">
+                  Os sorteios abertos ficam na área Premium e você entra com um clique. Só concorre quem está com o Premium ativo,
+                  e quem ganha espera {sorteios.carenciaGanhadorDias} dias para ganhar de novo.
+                </p>
+              </li>
+            </ul>
           </div>
         </section>
 

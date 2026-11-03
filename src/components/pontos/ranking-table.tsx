@@ -60,9 +60,9 @@ export function RankingTable({
     last: boolean,
     firstPosition: number,
   ) => (
-    <div className="h-full overflow-x-auto rounded-2xl bg-white ring-1 ring-asfalto-100">
+    <div className={`overflow-x-auto rounded-2xl bg-white ring-1 ring-asfalto-100 ${pager ? "h-full" : ""}`}>
       {/* Com vagas fixas, a tabela ocupa a altura da coluna e as linhas se dividem por igual */}
-      <table className={`w-full text-left text-sm ${pageSize ? "h-full" : ""}`}>
+      <table className={`w-full text-left text-sm ${pageSize && pager ? "h-full" : ""}`}>
         <thead className="border-b border-asfalto-100 text-asfalto-500">
           <tr>
             <th scope="col" className="px-4 py-3 font-semibold">
@@ -109,7 +109,7 @@ export function RankingTable({
                     {!rows.length && i === 0 ? (
                       <span className="text-asfalto-500">{empty}</span>
                     ) : (
-                      "—"
+                      <span className="text-asfalto-500">Vaga livre</span>
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-right">—</td>
@@ -132,7 +132,7 @@ export function RankingTable({
 
   if (!pageSize)
     return <div className="flex-1">{table(rows, true, 1)}</div>;
-  if (!pager) return table(rows.slice(0, pageSize), true, 1);
+  if (!pager) return <div className="flex-1">{table(rows.slice(0, pageSize), true, 1)}</div>;
   const pages = chunk(rows, pageSize);
   return (
     <Paged
