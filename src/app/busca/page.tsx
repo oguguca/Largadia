@@ -56,6 +56,8 @@ async function Results({ searchParams }: { searchParams: PageProps<"/busca">["se
           <ViewToggle filters={filters} />
         </div>
 
+        <UnknownNotice filters={filters} unknown={result.unknown} />
+
         {filters.view === "mapa" ? (
           <div className="h-[70vh] overflow-hidden rounded-2xl ring-1 ring-asfalto-100">
             <RaceMapLazy
@@ -123,5 +125,40 @@ function Pagination({ filters, page, pages }: { filters: SearchFilters; page: nu
         </Link>
       )}
     </nav>
+  );
+}
+
+/**
+ * Aviso de provas que ficaram de fora só por não informarem distância ou preço.
+ * O link tira o filtro que as escondeu e mantém o resto da busca.
+ */
+function UnknownNotice({ filters, unknown }: { filters: SearchFilters; unknown: { distance: number; price: number } }) {
+  const items = [
+    unknown.distance > 0 && {
+      key: "dist",
+      text: `${unknown.distance} ${unknown.distance === 1 ? "prova não informa" : "provas não informam"} a distância e ${unknown.distance === 1 ? "ficou" : "ficaram"} de fora.`,
+      href: `/busca${toQueryString(filters, { dist: undefined, pagina: 1 })}`,
+      label: "Ver sem o filtro de distância",
+    },
+    unknown.price > 0 && {
+      key: "preco",
+      text: `${unknown.price} ${unknown.price === 1 ? "prova não informa" : "provas não informam"} o preço e ${unknown.price === 1 ? "ficou" : "ficaram"} de fora.`,
+      href: `/busca${toQueryString(filters, { preco: undefined, pagina: 1 })}`,
+      label: "Ver sem o filtro de preço",
+    },
+  ].filter((i): i is { key: string; text: string; href: string; label: string } => !!i);
+  if (!items.length) return null;
+  return (
+    <div className="mb-3 space-y-1 rounded-2xl bg-largada-100/60 px-4 py-3 text-sm text-asfalto-800 ring-1 ring-largada-500/20">
+      {items.map((i) => (
+        <p key={i.key}>
+          {i.text}{" "}
+          <Link href={i.href} className="font-semibold text-largada-700 hover:underline">
+            {i.label}
+          </Link>
+        </p>
+      ))}
+      <p className="text-xs text-asfalto-500">Muitos calendários de inscrição não divulgam esses dados. Confira no site oficial da prova.</p>
+    </div>
   );
 }

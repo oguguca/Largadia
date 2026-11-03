@@ -222,11 +222,6 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
   if (filters.uf) where.state = filters.uf;
   if (filters.cidade) where.citySlug = filters.cidade;
   if (filters.tipo) where.type = filters.tipo;
-  if (filters.preco !== undefined) {
-    where.priceMinCents = { lte: Math.round(filters.preco * 100) };
-    // Sem preço conhecido a prova não entra no filtro (não dá para dizer se é gratuita)
-    where.priceKnown = true;
-  }
 
   const from = filters.de ? parseDateBrt(filters.de) : null;
   const to = filters.ate ? parseDateBrt(filters.ate) : null;
@@ -254,7 +249,6 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
   });
 
   let items: RaceCard[] = markPast(candidates, now);
-  if (filters.dist) items = items.filter((r) => matchesDistanceBucket(r.distancesKm, filters.dist!));
   if (hasGeo) {
     items = items
       .map((r) => ({
@@ -263,6 +257,26 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
           r.lat !== null && r.lng !== null ? distanceKm(filters.lat!, filters.lng!, r.lat, r.lng) : undefined,
       }))
       .filter((r) => !filters.raio || (r.distanceFromUserKm !== undefined && r.distanceFromUserKm <= filters.raio));
+  }
+
+  // Distância e preço por último: a prova que bate com o resto, mas não informa o dado, é contada à parte.
+  // A maioria das importadas chega sem distância e sem preço, e sumir com elas sem aviso parecia busca quebrada.
+  const unknown = { distance: 0, price: 0 };
+  if (filters.dist || filters.preco !== undefined) {
+    const maxCents = filters.preco !== undefined ? Math.round(filters.preco * 100) : null;
+    items = items.filter((r) => {
+      const distOk = !filters.dist || matchesDistanceBucket(r.distancesKm, filters.dist);
+      const distUnknown = !!filters.dist && r.distancesKm.length === 0;
+      // Sem preço conhecido não dá para dizer se é gratuita ou cabe no valor
+      const priceOk = maxCents === null || (r.priceKnown && r.priceMinCents <= maxCents);
+      const priceUnknown = maxCents !== null && !r.priceKnown;
+      if (distOk && priceOk) return true;
+      if ((distOk || distUnknown) && (priceOk || priceUnknown)) {
+        if (distUnknown) unknown.distance++;
+        else unknown.price++;
+      }
+      return false;
+    });
   }
 
   const total = items.length;
@@ -275,5 +289,7 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
     items: items.slice((page - 1) * SEARCH_PAGE_SIZE, page * SEARCH_PAGE_SIZE),
     /** Para o mapa: todos os resultados com coordenadas, sem paginação */
     mapItems: items.filter((r) => r.lat !== null && r.lng !== null),
+    /** Provas que batem com os outros filtros, mas ficaram de fora por não informar distância ou preço */
+    unknown,
   };
 }
