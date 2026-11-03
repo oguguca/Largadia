@@ -11,6 +11,7 @@ import { PastBadge, StatusBadge } from "@/components/corridas/status-badge";
 import { googleCalendarUrl, platformName } from "@/domain/corridas/links";
 import { RaceMapLazy } from "@/components/corridas/race-map-lazy";
 import { raceJsonLd } from "./json-ld";
+import { ClaimSection } from "./claim-section";
 
 export async function generateMetadata(props: PageProps<"/corrida/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
@@ -68,9 +69,9 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
       <div className="mx-auto grid max-w-4xl gap-6 px-4 py-6 md:grid-cols-[1fr_18rem]">
         <div className="space-y-6">
           {race.isPast && (
-            <p className="rounded-xl bg-asfalto-100 p-3 text-sm text-asfalto-700">
-              Esta prova já aconteceu. Correu? Em breve você poderá avaliar e enviar sua comprovação.
-            </p>
+            <Suspense fallback={<div className="h-32 animate-pulse rounded-2xl bg-asfalto-100" />}>
+              <ClaimSection race={race} />
+            </Suspense>
           )}
           {!race.isPast && (
             <div className="flex gap-2 text-sm md:hidden">
@@ -84,13 +85,13 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
           )}
           <dl className="grid grid-cols-2 gap-3 rounded-2xl bg-white p-4 ring-1 ring-asfalto-100 sm:grid-cols-3">
             <Info label="Data">{formatDateLong(race.startsAt)}</Info>
-            <Info label="Largada">{formatTime(race.startsAt)}</Info>
+            <Info label="Largada">{race.timeKnown ? formatTime(race.startsAt) : "Horário no site oficial"}</Info>
             <Info label="Tipo">{raceTypeLabels[race.type]}</Info>
             <Info label="Local">
               {race.venue} — {race.city}/{race.state}
             </Info>
             <Info label="Distâncias">{race.distancesKm.map(formatDistance).join(" · ")}</Info>
-            <Info label="Valor">{formatPriceRange(race.priceMinCents, race.priceMaxCents)}</Info>
+            <Info label="Valor">{formatPriceRange(race.priceMinCents, race.priceMaxCents, race.priceKnown)}</Info>
             <Info label="Organização">{race.organizer}</Info>
           </dl>
 

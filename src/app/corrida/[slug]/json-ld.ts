@@ -14,7 +14,8 @@ export function raceJsonLd(race: Race, siteUrl: string) {
     "@context": "https://schema.org",
     "@type": "SportsEvent",
     name: race.name,
-    startDate: race.startsAt.toISOString(),
+    // Sem horário confirmado, informa só o dia (em Brasília) para não anunciar uma hora errada
+    startDate: race.timeKnown ? race.startsAt.toISOString() : new Date(race.startsAt.getTime() - 3 * 3600_000).toISOString().slice(0, 10),
     eventStatus: "https://schema.org/EventScheduled",
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     sport: "Corrida de rua",
@@ -39,8 +40,9 @@ export function raceJsonLd(race: Race, siteUrl: string) {
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: "BRL",
-      lowPrice: (race.priceMinCents / 100).toFixed(2),
-      highPrice: (race.priceMaxCents / 100).toFixed(2),
+      ...(race.priceKnown
+        ? { lowPrice: (race.priceMinCents / 100).toFixed(2), highPrice: (race.priceMaxCents / 100).toFixed(2) }
+        : {}),
       availability: availability[race.registrationStatus],
       url: race.registrationUrl,
     },

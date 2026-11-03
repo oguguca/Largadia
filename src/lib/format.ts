@@ -15,7 +15,8 @@ export const formatDateLong = (d: Date) => dateLong.format(d);
 export const formatDateShort = (d: Date) => dateShort.format(d).replace(".", "");
 export const formatTime = (d: Date) => time.format(d);
 
-export function formatPriceRange(minCents: number, maxCents: number): string {
+export function formatPriceRange(minCents: number, maxCents: number, known = true): string {
+  if (!known) return "Preço no site";
   if (maxCents === 0) return "Gratuita";
   if (minCents === maxCents) return brl.format(minCents / 100);
   if (minCents === 0) return `Grátis a ${brl.format(maxCents / 100)}`;

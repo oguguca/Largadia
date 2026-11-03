@@ -30,6 +30,8 @@ async function Results({ searchParams }: { searchParams: PageProps<"/busca">["se
   const filters = parseSearchFilters(await searchParams);
   await connection();
   const result = await searchRaces(filters, new Date());
+  // Página e visualização não contam como filtro
+  const hasFilters = toQueryString(filters, { pagina: 1, view: "lista" }) !== "";
 
   return (
     <div className="grid gap-6 md:grid-cols-[18rem_1fr]">
@@ -63,8 +65,17 @@ async function Results({ searchParams }: { searchParams: PageProps<"/busca">["se
           </div>
         ) : result.total === 0 ? (
           <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-asfalto-100">
-            <p className="font-semibold">Nada por aqui com esses filtros.</p>
-            <p className="mt-1 text-sm text-asfalto-500">Tente aumentar o raio, mudar as datas ou remover algum filtro.</p>
+            {hasFilters ? (
+              <>
+                <p className="font-semibold">Nada por aqui com esses filtros.</p>
+                <p className="mt-1 text-sm text-asfalto-500">Tente aumentar o raio, mudar as datas ou remover algum filtro.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold">Estamos montando o calendário.</p>
+                <p className="mt-1 text-sm text-asfalto-500">As primeiras provas aparecem aqui em breve.</p>
+              </>
+            )}
           </div>
         ) : (
           <>
