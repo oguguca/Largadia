@@ -32,7 +32,8 @@ export function RaffleCard({
   entered: boolean;
   children?: React.ReactNode;
 }) {
-  const canEnter = viewer === "premium" || (viewer === "usuario" && !raffle.premiumOnly);
+  // Todo sorteio é só para Premium: o ganhador precisa estar com a assinatura ativa
+  const canEnter = viewer === "premium";
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-asfalto-100">
       {/* Imagem inteira (sem corte) num quadro de altura fixa */}
@@ -49,8 +50,8 @@ export function RaffleCard({
       <div className="flex flex-1 flex-col gap-3 border-t border-asfalto-100 p-4">
         <div>
           <div className="mb-2 flex flex-wrap gap-2 text-xs font-semibold">
-            <span className={`rounded-full px-2.5 py-1 ${raffle.premiumOnly ? "bg-asfalto-950 text-white" : "bg-pace-500 text-asfalto-950"}`}>
-              {raffle.premiumOnly ? "Exclusivo Premium" : "Aberto a todos"}
+            <span className="rounded-full bg-asfalto-950 px-2.5 py-1 text-white">
+              Exclusivo Premium
             </span>
             <span className="rounded-full bg-asfalto-100 px-2.5 py-1 text-asfalto-700">
               {raffle.entriesCloseAt ? `Até ${formatDateShort(raffle.entriesCloseAt)}` : "Participações abertas"}

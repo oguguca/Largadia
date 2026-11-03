@@ -75,7 +75,8 @@ export function entryBlockReason(
   if (raffle.status !== "ABERTO") return "Este sorteio não está aceitando participações.";
   if (deadlinePassed(raffle.entriesCloseAt, now)) return "As participações já foram encerradas.";
   if (!user) return "Entre na sua conta para participar.";
-  if (raffle.premiumOnly && !user.premium) return "Sorteio exclusivo para assinantes Premium.";
+  // Só quem tem Premium ativo pode ganhar (drawRaffle), então só ele entra: ninguém participa à toa
+  if (!user.premium) return "Sorteio exclusivo para assinantes Premium.";
   const until = cooldownUntil(user.lastWinAt ?? null);
   if (until && until > now) {
     return `Você ganhou um sorteio recentemente: pode participar de novo a partir de ${until.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`;

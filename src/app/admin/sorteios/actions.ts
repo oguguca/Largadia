@@ -46,7 +46,9 @@ export async function saveRaffle(id: string | null, _prev: RaffleFormState, form
 
 export async function setRaffleStatus(id: string, status: "ABERTO" | "ENCERRADO") {
   await requireAdmin();
-  await db.raffle.updateMany({ where: { id: idSchema.parse(id), status: { not: "SORTEADO" } }, data: { status } });
+  // A action pode ser chamada direto: SORTEADO só sai de drawRaffle, com ganhador
+  const next = z.enum(["ABERTO", "ENCERRADO"]).parse(status);
+  await db.raffle.updateMany({ where: { id: idSchema.parse(id), status: { not: "SORTEADO" } }, data: { status: next } });
   revalidatePath("/assinatura");
   revalidatePath(`/admin/sorteios/${id}`);
 }

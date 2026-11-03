@@ -39,7 +39,8 @@ describe("sorteios", () => {
     expect(entryBlockReason(open, { premium: false }, now)).toMatch(/Premium/);
     expect(entryBlockReason(open, null, now)).toMatch(/Entre/);
     expect(entryBlockReason({ ...open, entriesCloseAt: now }, { premium: true }, now)).toMatch(/encerradas/);
-    expect(entryBlockReason({ ...open, premiumOnly: false }, { premium: false }, now)).toBeNull();
+    // Só Premium ativo pode ganhar, então quem não assina também não entra (mesmo em sorteio antigo sem a marca)
+    expect(entryBlockReason({ ...open, premiumOnly: false }, { premium: false }, now)).toMatch(/Premium/);
   });
 
   it("só sorteia após o prazo, com participantes e uma única vez", () => {

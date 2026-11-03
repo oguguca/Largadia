@@ -83,9 +83,8 @@ export function RaffleForm({
       >
         <input name="drawAtSubscribers" type="number" min={1} inputMode="numeric" defaultValue={v("drawAtSubscribers")} className={field} />
       </F>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="premiumOnly" defaultChecked={v("premiumOnly") !== ""} /> Só assinantes Premium podem participar
-      </label>
+      <input type="hidden" name="premiumOnly" value="on" />
+      <p className="text-sm text-asfalto-500">Só assinantes Premium participam e podem ganhar.</p>
       <button disabled={pending} className="rounded-xl bg-largada-500 px-6 py-2.5 font-semibold text-asfalto-950 hover:bg-largada-600 disabled:opacity-60">
         {pending ? "Salvando…" : submitLabel}
       </button>
