@@ -1,6 +1,10 @@
 import "server-only";
 import { lookup } from "node:dns/promises";
+import http from "node:http";
+import https from "node:https";
+import type { LookupFunction } from "node:net";
 import { isIP } from "node:net";
+import { Readable } from "node:stream";
 
 const MAX_BYTES = 2_000_000;
 
@@ -42,7 +46,9 @@ function isPrivateAddress(ip: string): boolean {
   );
 }
 
-async function assertPublicUrl(raw: string): Promise<URL> {
+type Target = { url: URL; address: string; family: number };
+
+async function assertPublicUrl(raw: string): Promise<Target> {
   const url = new URL(raw);
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("Use um link http(s).");
   if (url.username || url.password) throw new Error("Link inválido.");
@@ -50,25 +56,48 @@ async function assertPublicUrl(raw: string): Promise<URL> {
   if (!addresses.length || addresses.some((a) => isPrivateAddress(a.address))) {
     throw new Error("Endereço não permitido.");
   }
-  return url;
+  return { url, address: addresses[0].address, family: addresses[0].family };
+}
+
+/**
+ * GET que conecta exatamente no IP já conferido. O fetch comum resolveria o nome de novo, e um DNS
+ * malicioso poderia responder um IP público na conferência e 127.0.0.1 na conexão (DNS rebinding).
+ */
+function pinnedGet({ url, address, family }: Target, headers: Record<string, string>, timeoutMs: number): Promise<Response> {
+  const pinned: LookupFunction = (_host, options, cb) => {
+    if (options.all) cb(null, [{ address, family }]);
+    else cb(null, address, family);
+  };
+  const client = url.protocol === "https:" ? https : http;
+  return new Promise((resolve, reject) => {
+    const req = client.get(url, { headers, lookup: pinned, timeout: timeoutMs }, (res) => {
+      const responseHeaders = new Headers();
+      for (const [k, v] of Object.entries(res.headers)) {
+        if (v !== undefined) responseHeaders.set(k, Array.isArray(v) ? v.join(", ") : v);
+      }
+      const status = res.statusCode ?? 500;
+      // Respostas sem corpo (3xx, 204) não podem levar stream no Response
+      const noBody = status < 200 || status === 204 || status === 205 || status === 304 || (status >= 300 && status < 400);
+      if (noBody) res.resume();
+      resolve(new Response(noBody ? null : (Readable.toWeb(res) as ReadableStream<Uint8Array>), { status, headers: responseHeaders }));
+    });
+    req.on("timeout", () => req.destroy(new Error("A página demorou demais para responder.")));
+    req.on("error", reject);
+  });
 }
 
 /** Baixa um arquivo público, seguindo até 3 redirecionamentos e checando cada destino. */
 async function fetchPublic(raw: string, accept: string, maxBytes: number): Promise<{ res: Response; finalUrl: URL }> {
-  let url = await assertPublicUrl(raw);
+  let target = await assertPublicUrl(raw);
   for (let hop = 0; hop < 4; hop++) {
-    const res = await fetch(url, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(8000),
-      headers: { "User-Agent": "Largadia/1.0 (cadastro de corridas)", Accept: accept },
-    });
+    const res = await pinnedGet(target, { "User-Agent": "Largadia/1.0 (cadastro de corridas)", Accept: accept }, 8000);
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
-      url = await assertPublicUrl(new URL(res.headers.get("location")!, url).toString());
+      target = await assertPublicUrl(new URL(res.headers.get("location")!, target.url).toString());
       continue;
     }
     if (!res.ok) throw new Error(`A página respondeu com status ${res.status}.`);
     if (Number(res.headers.get("content-length") ?? 0) > maxBytes) throw new Error("Arquivo grande demais.");
-    return { res, finalUrl: url };
+    return { res, finalUrl: target.url };
   }
   throw new Error("Muitos redirecionamentos.");
 }

@@ -54,7 +54,8 @@ export function yescomId(url: string, date: string, name: string): string | unde
     if (!/(^|\.)yescom\.com\.br$/.test(u.hostname)) return undefined;
     // Provas "em breve" ainda sem site apontam para o próprio calendário: aí o nome identifica a prova
     if (u.pathname.startsWith("/site/")) return `yescom:evento/${slugify(name)}:${date}`;
-    const path = u.pathname.replace(/\/index\.\w+$/i, "").replace(/^\/+|\/+$/g, "");
+    // Minúsculas: /MaratonaSP/ e /maratonasp/ são a mesma prova e não podem virar duas
+    const path = u.pathname.toLowerCase().replace(/\/index\.\w+$/i, "").replace(/^\/+|\/+$/g, "");
     return path ? `yescom:${path}:${date}` : undefined;
   } catch {
     return undefined;
@@ -80,6 +81,14 @@ const MONTHS: Record<string, number> = {
 /** "25 Janeiro 2026" ou "14 e 15 Agosto 2026" -> "2026-01-25" (primeiro dia). */
 export function parseWrittenDate(text: string): string | undefined {
   const plain = text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  // Período que vira o mês: "31 de dezembro a 1 de janeiro 2027" começa em 31/12/2026
+  const cross = /(\d{1,2})\s+(?:de\s+)?([a-z]+)\s*(?:a|e|-)\s*\d{1,2}\s+(?:de\s+)?([a-z]+)\s+(?:de\s+)?(\d{4})/.exec(plain);
+  if (cross && MONTHS[cross[2]] && MONTHS[cross[3]]) {
+    const [first, last] = [MONTHS[cross[2]], MONTHS[cross[3]]];
+    const year = Number(cross[4]) - (first > last ? 1 : 0);
+    const iso = `${year}-${String(first).padStart(2, "0")}-${cross[1].padStart(2, "0")}`;
+    return parseDateBrt(iso) ? iso : undefined;
+  }
   const m = /(\d{1,2})(?:\s*(?:a|e|-)\s*\d{1,2})?\s+(?:de\s+)?([a-z]+)\s+(?:de\s+)?(\d{4})/.exec(plain);
   const month = m && MONTHS[m[2]];
   if (!m || !month) return undefined;
