@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { db } from "@/lib/db";
 import { isPremium } from "@/domain/assinatura/status";
 import { publicName } from "./pontos";
@@ -18,11 +19,35 @@ export async function getPointsRanking(
   top = 20,
   /** Só a página de pagamento pede: mistura os corredores de demonstração (nunca em produção) */
   { demo = false }: { demo?: boolean } = {},
-): Promise<{ rows: RankingRow[]; viewer: RankingRow | null }> {
+): Promise<{ rows: RankingRow[]; viewer: RankingRow | null; total: number }> {
+  const ranked = await rankedSeason(season.start.getTime(), season.end.getTime(), demo);
+
+  const viewerIndex = viewerId ? ranked.findIndex((r) => r.userId === viewerId) : -1;
+  const viewerName =
+    viewerIndex >= 0
+      ? publicName((await db.user.findUnique({ where: { id: viewerId! }, select: { name: true } }))?.name ?? "Você")
+      : null;
+  const withName = (r: (typeof ranked)[number], i: number): RankingRow => ({
+    ...r,
+    name: i === viewerIndex && viewerName ? viewerName : `Assinante ${i + 1}`,
+  });
+
+  return {
+    rows: ranked.slice(0, top).map(withName),
+    viewer: viewerIndex >= 0 ? withName(ranked[viewerIndex], viewerIndex) : null,
+    total: ranked.length,
+  };
+}
+
+/**
+ * Totais ordenados da temporada. Uma consulta por requisição: a página inicial pede o ranking
+ * em vários blocos (topo, sua temporada, top 5) e todos reaproveitam o mesmo resultado.
+ */
+const rankedSeason = cache(async (startMs: number, endMs: number, demo: boolean) => {
   const [groups, subscribers] = await Promise.all([
     db.pointClaim.groupBy({
       by: ["userId"],
-      where: { status: "APROVADA", raceDate: { gte: season.start, lt: season.end } },
+      where: { status: "APROVADA", raceDate: { gte: new Date(startMs), lt: new Date(endMs) } },
       _sum: { points: true, distanceKm: true },
       _count: { _all: true },
     }),
@@ -39,23 +64,8 @@ export async function getPointsRanking(
   const zeroed = subscribers
     .filter((u) => !withPoints.has(u.id) && isPremium(u))
     .map((u) => ({ userId: u.id, points: 0, races: 0, km: 0 }));
-  const ranked = rankTotals([...scored, ...zeroed, ...(demo ? demoTotals() : [])]);
-
-  const viewerIndex = viewerId ? ranked.findIndex((r) => r.userId === viewerId) : -1;
-  const viewerName =
-    viewerIndex >= 0
-      ? publicName((await db.user.findUnique({ where: { id: viewerId! }, select: { name: true } }))?.name ?? "Você")
-      : null;
-  const withName = (r: (typeof ranked)[number], i: number): RankingRow => ({
-    ...r,
-    name: i === viewerIndex && viewerName ? viewerName : `Assinante ${i + 1}`,
-  });
-
-  return {
-    rows: ranked.slice(0, top).map(withName),
-    viewer: viewerIndex >= 0 ? withName(ranked[viewerIndex], viewerIndex) : null,
-  };
-}
+  return rankTotals([...scored, ...zeroed, ...(demo ? demoTotals() : [])]);
+});
 
 /**
  * Corredores de demonstração da tabela da página de pagamento, no computador local (`npm run dev`).

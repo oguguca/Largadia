@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { currentSession } from "@/lib/session";
 import { db } from "@/lib/db";
 import { isPremium } from "@/domain/assinatura/status";
@@ -17,13 +18,13 @@ export async function raffleViewer(raffleIds: string[]) {
 }
 
 /** Quantos assinantes Premium estão ativos agora (mesma regra de acesso do resto do site). */
-export async function countActiveSubscribers(): Promise<number> {
+export const countActiveSubscribers = cache(async (): Promise<number> => {
   const users = await db.user.findMany({
     where: { subscriptionStatus: { not: null } },
     select: { subscriptionStatus: true, subscriptionEndsAt: true },
   });
   return users.filter((u) => isPremium(u)).length;
-}
+});
 
 /**
  * Sorteios abertos e ainda no prazo (ou sem prazo), os que fecham primeiro antes.

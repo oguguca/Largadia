@@ -186,14 +186,14 @@ async function PlansOrMember() {
 async function MemberSummary({ userId }: { userId: string }) {
   const now = new Date();
   const season = seasonOf(now);
-  const [{ rows, viewer: me }, pending] = await Promise.all([
-    getPointsRanking(userId, season, 1000),
+  const [{ rows, viewer: me, total }, pending] = await Promise.all([
+    getPointsRanking(userId, season, 1),
     db.pointClaim.count({ where: { userId, status: "PENDENTE" } }),
   ]);
   const left = daysLeft(season, now);
   const leader = rows[0];
   const stats = [
-    ["Posição", me ? `${me.position}º` : "—", me ? `de ${rows.length}` : ""],
+    ["Posição", me ? `${me.position}º` : "—", me ? `de ${total}` : ""],
     ["Pontos", (me?.points ?? 0).toLocaleString("pt-BR"), leader && me && leader.userId !== me.userId ? `1º tem ${leader.points}` : ""],
     ["Provas", String(me?.races ?? 0), "aprovadas"],
     ["Km", (me?.km ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 }), "na temporada"],
