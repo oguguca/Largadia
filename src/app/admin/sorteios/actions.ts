@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { isPremium } from "@/domain/assinatura/status";
+import { saveUploadedImage } from "@/domain/uploads/imagem";
 import { drawBlockReason, pickWinner, raffleSchema } from "@/domain/sorteios/sorteio";
 
 export type RaffleFormState = { errors?: Record<string, string[]>; values?: Record<string, string> } | null;
@@ -16,14 +17,19 @@ const idSchema = z.string().cuid();
 /** Cria (sem id) ou atualiza (com id) um sorteio. Status SORTEADO só vem da action de sortear. */
 export async function saveRaffle(id: string | null, _prev: RaffleFormState, form: FormData): Promise<RaffleFormState> {
   await requireAdmin();
-  const values = Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
+  // Só os campos de texto voltam para o formulário em caso de erro (o arquivo não dá para devolver)
+  const values = Object.fromEntries([...form.entries()].filter((e): e is [string, string] => typeof e[1] === "string"));
   const parsed = raffleSchema.safeParse(values);
   if (!parsed.success) {
     const errors: Record<string, string[]> = {};
     for (const issue of parsed.error.issues) (errors[String(issue.path[0] ?? "form")] ??= []).push(issue.message);
     return { errors, values };
   }
-  const data = { ...parsed.data, imageUrl: parsed.data.imageUrl ?? null, raceId: parsed.data.raceId ?? null };
+  // Arquivo escolhido no computador tem prioridade sobre o link
+  const uploaded = await saveUploadedImage(form.get("imageFile"));
+  if (uploaded && "error" in uploaded) return { errors: { imageFile: [uploaded.error] }, values };
+  const imageUrl = uploaded?.url ?? parsed.data.imageUrl ?? null;
+  const data = { ...parsed.data, imageUrl, raceId: parsed.data.raceId ?? null };
 
   if (id) {
     const current = await db.raffle.findUnique({ where: { id: idSchema.parse(id) }, select: { status: true } });

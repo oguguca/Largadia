@@ -24,7 +24,12 @@ export const raffleSchema = z
     title: z.string().trim().min(3, "Título muito curto").max(120),
     prize: z.string().trim().min(3, "Descreva o prêmio").max(160),
     description: z.string().trim().min(10, "Descrição muito curta").max(5000),
-    imageUrl: optionalUrl,
+    // Link externo ou imagem já enviada pelo admin (/api/imagens/<id>)
+    imageUrl: z
+      .string()
+      .trim()
+      .regex(/^\/api\/imagens\/[a-z0-9]+$/)
+      .or(optionalUrl),
     raceId: z.string().cuid().optional().or(z.literal("").transform(() => undefined)),
     /** "on" = sem data: as participações ficam abertas até o admin encerrar */
     manualClose: z

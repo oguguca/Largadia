@@ -234,6 +234,16 @@ model PointClaim {
   @@index([status, raceDate])
 }
 
+/// Imagem enviada pelo admin (ex.: foto do prêmio de um sorteio), já reduzida e em WebP; servida em /api/imagens/[id]
+model Upload {
+  id          String   @id @default(cuid())
+  contentType String
+  data        Bytes
+  width       Int
+  height      Int
+  createdAt   DateTime @default(now())
+}
+
 /// Pagamento Pix de um período Premium. O id é o da sessão do Checkout: liberar o acesso duas vezes é impossível.
 model PixPayment {
   id          String   @id

@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import type { RaffleFormState } from "./actions";
+import { ImageField } from "./image-field";
 
 const field = "w-full rounded-lg border border-asfalto-300 bg-white px-3 py-2 text-sm";
 
@@ -51,9 +52,7 @@ export function RaffleForm({
             ))}
           </select>
         </F>
-        <F label="Imagem do prêmio (URL, opcional)" error={errors.imageUrl}>
-          <input name="imageUrl" defaultValue={v("imageUrl")} className={field} />
-        </F>
+        <ImageField initialUrl={v("imageUrl")} error={errors.imageFile?.[0] ?? errors.imageUrl?.[0]} />
       </div>
       <fieldset className="space-y-2 rounded-xl bg-asfalto-100/60 p-3">
         <legend className="px-1 text-xs font-semibold text-asfalto-700">Participações</legend>
