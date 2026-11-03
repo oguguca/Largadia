@@ -10,6 +10,9 @@ export type RaffleCardData = {
   imageUrl: string | null;
   entriesCloseAt: Date | null;
   premiumOnly: boolean;
+  /** Meta de assinantes Premium para sortear (vazio = sem meta) */
+  drawAtSubscribers: number | null;
+  activeSubscribers: number;
   race: { name: string; slug: string } | null;
   _count: { entries: number };
 };
@@ -47,6 +50,7 @@ export function RaffleCard({
           <h3 className="font-display text-2xl leading-tight font-bold uppercase">{raffle.prize}</h3>
           <p className="text-sm text-asfalto-500">{raffle.title}</p>
           <LiveEntryCount key={raffle._count.entries} raffleId={raffle.id} initial={raffle._count.entries} />
+          {raffle.drawAtSubscribers && <SubscriberGoal goal={raffle.drawAtSubscribers} current={raffle.activeSubscribers} />}
           {raffle.race && (
             <Link href={`/corrida/${raffle.race.slug}`} className="text-sm text-largada-600 hover:underline">
               {raffle.race.name}
@@ -69,5 +73,32 @@ export function RaffleCard({
         </div>
       </div>
     </article>
+  );
+}
+
+/** "Sorteado quando o Largadia bater 100 assinantes Premium", com a barra de quanto falta. */
+function SubscriberGoal({ goal, current }: { goal: number; current: number }) {
+  const reached = current >= goal;
+  const pct = Math.min(100, Math.round((current / goal) * 100));
+  return (
+    <div className="mt-3 rounded-xl bg-asfalto-950 p-3 text-white">
+      <p className="text-sm font-semibold">
+        {reached ? "🎯 Meta batida! O sorteio acontece em breve." : `🎯 Sorteado quando o Largadia bater ${goal.toLocaleString("pt-BR")} assinantes Premium`}
+      </p>
+      <div
+        className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/15"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={goal}
+        aria-valuenow={Math.min(current, goal)}
+        aria-label="Assinantes Premium até a meta"
+      >
+        <div className="h-full rounded-full bg-pace-500" style={{ width: `${Math.max(pct, 2)}%` }} />
+      </div>
+      <p className="mt-1.5 text-xs text-asfalto-300 tabular-nums">
+        {Math.min(current, goal).toLocaleString("pt-BR")} de {goal.toLocaleString("pt-BR")} assinantes
+        {!reached && ` · faltam ${(goal - current).toLocaleString("pt-BR")}`}
+      </p>
+    </div>
   );
 }

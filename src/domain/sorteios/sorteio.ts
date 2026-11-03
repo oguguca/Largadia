@@ -38,6 +38,11 @@ export const raffleSchema = z
       .optional()
       .transform((v) => v === "on"),
     status: z.enum(["RASCUNHO", "ABERTO", "ENCERRADO"]),
+    /** Meta opcional: sortear quando o Largadia tiver esse número de assinantes Premium ativos */
+    drawAtSubscribers: z
+      .union([z.literal("").transform(() => null), z.coerce.number().int("Use um número inteiro").min(1).max(1_000_000)])
+      .optional()
+      .transform((v) => v ?? null),
   })
   .refine((d) => d.manualClose || d.closeDate, { path: ["closeDate"], message: "Informe a data ou marque “eu encerro manualmente”" })
   .transform(({ closeDate, closeTime, manualClose, ...d }) => {

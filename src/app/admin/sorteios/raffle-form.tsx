@@ -77,6 +77,13 @@ export function RaffleForm({
           </F>
         </div>
       </fieldset>
+      <F
+        label="Meta de assinantes (opcional)"
+        error={errors.drawAtSubscribers}
+        hint="Ex.: 100. O cartão mostra “sorteado quando o Largadia bater 100 assinantes Premium” com a barra de progresso."
+      >
+        <input name="drawAtSubscribers" type="number" min={1} inputMode="numeric" defaultValue={v("drawAtSubscribers")} className={field} />
+      </F>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="premiumOnly" defaultChecked={v("premiumOnly") !== ""} /> Só assinantes Premium podem participar
       </label>

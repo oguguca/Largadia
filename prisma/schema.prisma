@@ -167,6 +167,8 @@ model Raffle {
   status         RaffleStatus  @default(RASCUNHO)
   /// Só assinantes Premium ativos podem participar
   premiumOnly    Boolean       @default(true)
+  /// Meta: o sorteio acontece quando o Largadia tiver esse número de assinantes Premium ativos
+  drawAtSubscribers Int?
   winnerId       String?
   winner         User?         @relation(fields: [winnerId], references: [id], onDelete: SetNull)
   drawnAt        DateTime?

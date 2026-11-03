@@ -9,6 +9,7 @@ import {
   type ParticipantStatus,
 } from "@/domain/sorteios/sorteio";
 import { PIX_STATUS, statusLabels } from "@/domain/assinatura/status";
+import { countActiveSubscribers } from "@/domain/sorteios/queries";
 import { addRaffleEntry, deleteRaffle, drawRaffle, removeRaffleEntry, saveRaffle, setRaffleStatus } from "../actions";
 import { RaffleForm } from "../raffle-form";
 import { raceOptions } from "../races";
@@ -50,6 +51,7 @@ export default async function SorteioPage(props: PageProps<"/admin/sorteios/[id]
   });
   if (!raffle) notFound();
   const drawBlocked = drawBlockReason(raffle, raffle._count.entries);
+  const subscribers = raffle.drawAtSubscribers ? await countActiveSubscribers() : 0;
   const now = new Date();
   const participants = raffle.entries.map((e) => ({ ...e, status: participantStatus(e.user, raffle, now) }));
   const counts: Record<ParticipantStatus, number> = { ASSINANTE: 0, RENOVAR: 0, EXPIRADO: 0 };
@@ -84,6 +86,12 @@ export default async function SorteioPage(props: PageProps<"/admin/sorteios/[id]
                 ? `Participações até ${dateTime(raffle.entriesCloseAt)}.`
                 : "Sem data: as participações ficam abertas até você encerrar."}{" "}
               O sorteio escolhe ao acaso, com chance igual, só entre quem está com o Premium ativo na hora.
+              {raffle.drawAtSubscribers && (
+                <span className={`mt-2 block font-semibold ${subscribers >= raffle.drawAtSubscribers ? "text-pace-500" : "text-white"}`}>
+                  🎯 Meta: {subscribers} de {raffle.drawAtSubscribers} assinantes Premium ativos
+                  {subscribers >= raffle.drawAtSubscribers ? " · meta batida, já pode sortear" : ` · faltam ${raffle.drawAtSubscribers - subscribers}`}
+                </span>
+              )}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {raffle.status === "ABERTO" && (
@@ -132,6 +140,7 @@ export default async function SorteioPage(props: PageProps<"/admin/sorteios/[id]
             closeDate: raffle.entriesCloseAt ? toBrt(raffle.entriesCloseAt).slice(0, 10) : "",
             closeTime: raffle.entriesCloseAt ? toBrt(raffle.entriesCloseAt).slice(11, 16) : "",
             premiumOnly: raffle.premiumOnly ? "on" : "",
+            drawAtSubscribers: raffle.drawAtSubscribers ? String(raffle.drawAtSubscribers) : "",
             status: raffle.status,
           }}
         />
