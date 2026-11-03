@@ -16,16 +16,19 @@ export function RaceVisual({
   type,
   name,
   className = "",
+  eager = false,
 }: {
   imageUrl: string | null;
   type: RaceType;
   name: string;
   className?: string;
+  /** Imagem do topo da página: carrega na hora em vez de esperar a rolagem */
+  eager?: boolean;
 }) {
   if (imageUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- imagens de organizadores vêm de domínios arbitrários
-      <img src={imageUrl} alt={name} loading="lazy" className={`object-cover ${className}`} />
+      <img src={imageUrl} alt={name} loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : undefined} className={`object-cover ${className}`} />
     );
   }
   return (
