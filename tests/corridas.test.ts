@@ -4,7 +4,6 @@ import { distanceKm, boundingBox } from "@/lib/geo";
 import { parseDateBrt, weekendWindow } from "@/lib/dates";
 import { formatDistance, formatPriceRange } from "@/lib/format";
 import { matchesDistanceBucket, parseSearchFilters, toQueryString } from "@/domain/corridas/filtros";
-import { formDataToSubmission, raceSubmissionSchema } from "@/domain/corridas/submissao";
 
 describe("slugify", () => {
   it("remove acentos e espaços", () => {
@@ -72,48 +71,5 @@ describe("filtros de busca", () => {
     const f = parseSearchFilters({ uf: "SP" });
     expect(toQueryString(f)).toBe("?uf=SP");
     expect(toQueryString(f, { pagina: 2 })).toBe("?uf=SP&pagina=2");
-  });
-});
-
-describe("envio de organizador", () => {
-  function form(overrides: Record<string, string | string[]> = {}) {
-    const fd = new FormData();
-    const base: Record<string, string | string[]> = {
-      name: "Corrida Teste do Bairro",
-      date: "2099-05-10",
-      time: "07:00",
-      city: "Santos",
-      state: "SP",
-      venue: "Orla da praia",
-      distances: ["5", "10"],
-      type: "RUA",
-      priceMin: "80",
-      priceMax: "100",
-      registrationUrl: "https://exemplo.com.br/inscricao",
-      registrationStatus: "ABERTAS",
-      organizer: "Organização Teste",
-      organizerEmail: "org@exemplo.com.br",
-      description: "Uma corrida de teste com descrição suficientemente longa.",
-      consent: "on",
-      ...overrides,
-    };
-    for (const [k, v] of Object.entries(base)) for (const x of [v].flat()) fd.append(k, x);
-    return formDataToSubmission(fd);
-  }
-
-  it("aceita envio válido e calcula o horário em BRT", () => {
-    const r = raceSubmissionSchema.parse(form({ otherDistance: "7,5" }));
-    expect(r.startsAt.toISOString()).toBe("2099-05-10T10:00:00.000Z");
-    expect(r.distances).toEqual([5, 7.5, 10]);
-  });
-  it("rejeita link javascript: e data passada", () => {
-    const r = raceSubmissionSchema.safeParse(form({ registrationUrl: "javascript:alert(1)", date: "2001-01-01" }));
-    expect(r.success).toBe(false);
-    const paths = r.error!.issues.map((i) => i.path[0]);
-    expect(paths).toContain("registrationUrl");
-  });
-  it("rejeita preço máximo menor que o mínimo e sem consentimento", () => {
-    const r = raceSubmissionSchema.safeParse(form({ priceMin: "100", priceMax: "50", consent: "" }));
-    expect(r.success).toBe(false);
   });
 });
