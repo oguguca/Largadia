@@ -143,6 +143,17 @@ async function Conta({ searchParams }: { searchParams: PageProps<"/conta">["sear
         )}
       </section>
 
+      <Link
+        href="/minhas-corridas"
+        className="flex items-center justify-between gap-4 rounded-2xl bg-white p-5 ring-1 ring-asfalto-100 hover:ring-largada-500"
+      >
+        <span>
+          <span className="block font-display text-xl font-bold uppercase">Minhas corridas</span>
+          <span className="text-sm text-asfalto-500">Sua estante de provas corridas, com as suas avaliações.</span>
+        </span>
+        <span className="text-sm font-semibold text-largada-600">Abrir</span>
+      </Link>
+
       <PointsSummary userId={user.id} />
 
       <form action={sair}>

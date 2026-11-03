@@ -118,7 +118,7 @@ function syncClaimDates(raceId: string, startsAt: Date) {
 
 /**
  * Antes de excluir uma prova, os registros de pontos dela viram "prova informada" com nome, data e cidade.
- * Sem isso, a exclusão em cascata apagaria os pontos já aprovados dos assinantes.
+ * Sem isso, a exclusão em cascata apagaria os pontos já aprovados dos assinantes. Vale o mesmo para "Minhas corridas".
  */
 async function deleteRaceKeepingClaims(raceId: string) {
   const race = await db.race.findUnique({ where: { id: raceId }, select: { name: true, startsAt: true, city: true, state: true } });
@@ -127,6 +127,11 @@ async function deleteRaceKeepingClaims(raceId: string) {
     db.pointClaim.updateMany({
       where: { raceId },
       data: { raceId: null, customRaceName: race.name, customRaceDate: race.startsAt, customCity: race.city, customState: race.state },
+    }),
+    // A estante também guarda a corrida como informada à mão
+    db.runLog.updateMany({
+      where: { raceId },
+      data: { raceId: null, customRaceName: race.name, customCity: race.city, customState: race.state },
     }),
     db.race.deleteMany({ where: { id: raceId } }),
   ]);

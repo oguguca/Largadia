@@ -22,7 +22,7 @@ export async function ClaimSection({ race }: { race: { id: string; slug: string;
     : [null, null];
 
   const best = pointsFor(Math.max(...race.distancesKm, 0));
-  const box = "space-y-3 rounded-2xl bg-white p-4 ring-1 ring-largada-500";
+  const box = "scroll-mt-20 space-y-3 rounded-2xl bg-white p-4 ring-1 ring-largada-500";
   const title = (
     <div>
       <h2 className="font-display text-xl font-bold uppercase">Correu esta prova?</h2>
@@ -34,7 +34,7 @@ export async function ClaimSection({ race }: { race: { id: string; slug: string;
 
   if (claim && claim.status !== "RECUSADA") {
     return (
-      <section className={box}>
+      <section id="pontuar" className={box}>
         {title}
         <p className="text-sm">
           <span className="font-semibold">{claimStatusLabels[claim.status]}</span> · {formatDistance(claim.distanceKm)} · {claim.points} pontos
@@ -46,7 +46,7 @@ export async function ClaimSection({ race }: { race: { id: string; slug: string;
 
   const blocked = claimBlockReason(race, user ? { premium: isPremium(user) } : null, null);
   return (
-    <section className={box}>
+    <section id="pontuar" className={box}>
       {title}
       {claim?.status === "RECUSADA" && (
         <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">

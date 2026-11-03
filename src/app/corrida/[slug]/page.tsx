@@ -12,6 +12,7 @@ import { googleCalendarUrl, platformName } from "@/domain/corridas/links";
 import { RaceMapLazy } from "@/components/corridas/race-map-lazy";
 import { raceJsonLd } from "./json-ld";
 import { ClaimSection } from "./claim-section";
+import { ReviewsSection } from "./reviews-section";
 import { pontos } from "@/config/pontos";
 
 export async function generateMetadata(props: PageProps<"/corrida/[slug]">): Promise<Metadata> {
@@ -104,6 +105,12 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
             <h2 className="mb-2 font-display text-xl font-bold uppercase">Sobre a prova</h2>
             <div className="space-y-3 leading-relaxed whitespace-pre-line text-asfalto-800">{race.description}</div>
           </section>
+
+          {race.isPast && (
+            <Suspense fallback={<div className="h-40 animate-pulse rounded-2xl bg-asfalto-100" />}>
+              <ReviewsSection race={race} />
+            </Suspense>
+          )}
 
           {race.lat !== null && race.lng !== null && (
             <section>

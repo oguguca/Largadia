@@ -81,6 +81,7 @@ model Race {
   clicks              RaceClick[]
   raffles             Raffle[]
   pointClaims         PointClaim[]
+  runLogs             RunLog[]
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
@@ -130,6 +131,7 @@ model User {
   raffleEntries        RaffleEntry[]
   rafflesWon           Raffle[]
   pointClaims          PointClaim[]
+  runLogs              RunLog[]
   pixPayments          PixPayment[]
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
@@ -260,4 +262,42 @@ model PixPayment {
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+/// "Minhas corridas": prova que a pessoa já correu, como uma estante de livros, com a avaliação dela.
+/// Grátis para qualquer conta. Comprovação aprovada nos pontos entra aqui sozinha.
+model RunLog {
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Prova do calendário; vazio quando a pessoa informou uma prova que não está no site
+  raceId             String?
+  race               Race?     @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  /// Prova informada à mão (quando raceId é vazio): nome, dia, cidade e UF
+  customRaceName     String?
+  customCity         String?
+  customState        String?   @db.Char(2)
+  /// Dia da prova (do calendário ou informado); ordena a estante
+  raceDate           DateTime
+  /// Distância corrida, em km
+  distanceKm         Float?
+  /// Tempo de conclusão, em segundos
+  finishSeconds      Int?
+  /// Nota geral de 1 a 5; vazia enquanto a pessoa não avaliou
+  rating             Int?
+  /// Notas opcionais de 1 a 5
+  ratingCourse       Int?
+  ratingOrganization Int?
+  ratingKit          Int?
+  ratingHydration    Int?
+  comment            String?   @db.Text
+  /// Admin escondeu a avaliação da página da prova (continua na estante da pessoa)
+  hiddenAt           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([userId, raceId])
+  @@index([userId, raceDate])
+  @@index([raceId, rating])
+  @@index([createdAt])
 }

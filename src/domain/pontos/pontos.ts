@@ -32,7 +32,7 @@ export function formatFinishTime(seconds: number): string {
 }
 
 /** Ritmo plausível em segundos por km: mais rápido que recorde mundial ou mais lento que caminhada indica erro de digitação. */
-const PACE_LIMITS = { fastest: 150, slowest: 1200 };
+export const PACE_LIMITS = { fastest: 150, slowest: 1200 };
 
 export const claimSchema = z
   .object({

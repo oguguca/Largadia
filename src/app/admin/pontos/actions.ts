@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { logApprovedClaim } from "@/domain/biblioteca/salvar";
 
 const idSchema = z.string().cuid();
 
@@ -22,6 +23,9 @@ export async function approveClaim(id: string) {
     where: { id: idSchema.parse(id), status: "PENDENTE" },
     data: { status: "APROVADA", reviewNote: null, reviewedAt: new Date() },
   });
+  // Corrida aprovada vai para a estante de quem correu
+  await logApprovedClaim(id);
+  revalidatePath("/minhas-corridas");
   refreshPoints();
 }
 

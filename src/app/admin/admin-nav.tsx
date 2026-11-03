@@ -16,6 +16,7 @@ const ICONS = {
   importar: "M12 4v11m0 0l-4-4m4 4l4-4M5 20h14",
   pontos: "M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z",
   assinantes: "M16 19v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1M9 10a3 3 0 100-6 3 3 0 000 6zM22 19v-1a4 4 0 00-3-3.9M16 4.1a3 3 0 010 5.8",
+  avaliacoes: "M21 12a8 8 0 01-11.6 7.1L4 20l1-4.4A8 8 0 1121 12z",
   sorteios: "M12 8v13M4 12h16M5 8h14v4H5zM12 8c-2-4-6-4-6-1s6 1 6 1zm0 0c2-4 6-4 6-1s-6 1-6 1z",
 };
 
@@ -32,6 +33,7 @@ const AFTER: Item[] = [
   { href: "/admin/pontos", label: "Pontos", icon: ICONS.pontos },
   { href: "/admin/assinantes", label: "Assinantes", icon: ICONS.assinantes },
   { href: "/admin/sorteios", label: "Sorteios", icon: ICONS.sorteios },
+  { href: "/admin/avaliacoes", label: "Avaliações", icon: ICONS.avaliacoes },
 ];
 
 function Icon({ d }: { d: string }) {

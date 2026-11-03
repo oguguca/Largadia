@@ -8,6 +8,7 @@ const links = [
   { href: "/busca", label: "Corridas", match: ["/busca", "/corrida/", "/corridas/"] },
   { href: "/calendario", label: "Calendário", match: ["/calendario"] },
   { href: "/assinatura", label: "Premium", match: ["/assinatura", "/sorteios"] },
+  { href: "/minhas-corridas", label: "Minhas corridas", match: ["/minhas-corridas"] },
   { href: "/conta", label: "Minha conta", match: ["/conta", "/entrar", "/cadastro"] },
 ];
 
