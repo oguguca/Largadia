@@ -114,3 +114,26 @@ export const brtDay = (d: Date) => new Date(d.getTime() - 3 * 3600_000).toISOStr
 export function hasStarted(startsAt: Date, now = new Date()): boolean {
   return brtDay(startsAt) <= brtDay(now);
 }
+
+export type PersonalRecord = { distanceKm: number; seconds: number; paceSeconds: number; name: string; logId: string };
+
+/** Melhor tempo em cada distância corrida (só corridas com distância e tempo), da menor para a maior distância. */
+export function personalRecords(
+  logs: { id: string; name: string; distanceKm: number | null; finishSeconds: number | null }[],
+): PersonalRecord[] {
+  const best = new Map<number, PersonalRecord>();
+  for (const l of logs) {
+    if (!l.distanceKm || !l.finishSeconds) continue;
+    const current = best.get(l.distanceKm);
+    if (!current || l.finishSeconds < current.seconds) {
+      best.set(l.distanceKm, {
+        distanceKm: l.distanceKm,
+        seconds: l.finishSeconds,
+        paceSeconds: Math.round(l.finishSeconds / l.distanceKm),
+        name: l.name,
+        logId: l.id,
+      });
+    }
+  }
+  return [...best.values()].sort((a, b) => a.distanceKm - b.distanceKm);
+}

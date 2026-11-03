@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { formatDateShort, formatDistance } from "@/lib/format";
 import { RunCover } from "@/components/biblioteca/run-cover";
 import { Stars } from "@/components/biblioteca/stars";
-import { brtDay, shelfStats } from "@/domain/biblioteca/biblioteca";
+import { brtDay, personalRecords, shelfStats, type PersonalRecord } from "@/domain/biblioteca/biblioteca";
 import { photoUrl } from "@/domain/biblioteca/salvar";
 import { formatFinishTime } from "@/domain/pontos/pontos";
 import type { RaceType } from "@/generated/prisma/enums";
@@ -14,10 +14,10 @@ import { AddRunForm, type ShelfOption } from "./add-run-form";
 
 export const metadata: Metadata = { title: "Minhas corridas", robots: { index: false } };
 
-export default function MinhasCorridasPage() {
+export default function MinhasCorridasPage(props: PageProps<"/minhas-corridas">) {
   return (
-    <Suspense fallback={<div className="mx-auto h-96 max-w-6xl animate-pulse px-4 py-10" />}>
-      <Shelf />
+    <Suspense fallback={<div className="h-80 animate-pulse bg-asfalto-950" />}>
+      <Shelf searchParams={props.searchParams} />
     </Suspense>
   );
 }
@@ -40,8 +40,12 @@ type ShelfItem = {
 /** "10K", "21,1K": a distância como vem no número de peito. */
 const shortKm = (km: number) => `${km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}K`;
 
-async function Shelf() {
+/** 330 -> "5:30/km" */
+const pace = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}/km`;
+
+async function Shelf({ searchParams }: { searchParams: PageProps<"/minhas-corridas">["searchParams"] }) {
   const user = await requireUser("/minhas-corridas");
+  const adding = (await searchParams).adicionar === "1";
   const now = new Date();
   const [logs, claims, past] = await Promise.all([
     db.runLog.findMany({
@@ -87,42 +91,61 @@ async function Shelf() {
   const stats = shelfStats(items);
   const rated = items.filter((i) => i.rating !== null).length;
   const years = Map.groupBy(items, (i) => Number(brtDay(i.date).slice(0, 4)));
+  const records = personalRecords(items);
+  // Sem corridas, o formulário já aparece aberto
+  const showForm = adding || !items.length;
 
   return (
     <div className="pb-16">
       <section className="relative overflow-hidden bg-asfalto-950 text-white">
         <div className="faixa-largada absolute inset-x-0 bottom-0 h-2 opacity-90" aria-hidden />
-        <div className="relative mx-auto max-w-6xl px-4 pt-12 pb-14">
-          <h1 className="font-display text-6xl leading-[0.9] font-extrabold italic uppercase md:text-7xl">Minhas corridas</h1>
-          <p className="mt-4 max-w-xl text-lg text-asfalto-300">
-            Cada prova que você já correu, com a sua nota. Suas avaliações aparecem na página da prova e ajudam quem vai correr a próxima.
-          </p>
-          <dl className="mt-8 grid max-w-3xl grid-cols-2 gap-6 border-t border-white/10 pt-6 sm:grid-cols-4">
-            <Stat label="Corridas" value={stats.runs.toLocaleString("pt-BR")} accent />
-            <Stat label="Km corridos" value={stats.km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} />
-            <Stat label="Cidades" value={stats.cities.toLocaleString("pt-BR")} />
-            <Stat label="Avaliadas" value={`${rated}/${stats.runs}`} />
-          </dl>
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 pt-12 pb-14 lg:grid-cols-[1fr_22rem] lg:items-end">
+          <div>
+            <h1 className="font-display text-6xl leading-[0.9] font-extrabold italic uppercase md:text-7xl">Minhas corridas</h1>
+            <p className="mt-4 max-w-xl text-lg text-asfalto-300">
+              Cada prova que você já correu, com a sua nota. Suas avaliações aparecem na página da prova e ajudam quem vai correr a próxima.
+            </p>
+            {!showForm && (
+              <Link
+                href="/minhas-corridas?adicionar=1#adicionar"
+                className="mt-6 inline-block rounded-xl bg-largada-500 px-5 py-3 font-semibold text-asfalto-950 hover:bg-largada-600"
+              >
+                Adicionar corrida
+              </Link>
+            )}
+            <dl className="mt-8 grid max-w-3xl grid-cols-2 gap-6 border-t border-white/10 pt-6 sm:grid-cols-4">
+              <Stat label="Corridas" value={stats.runs.toLocaleString("pt-BR")} accent />
+              <Stat label="Km corridos" value={stats.km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} />
+              <Stat label="Cidades" value={stats.cities.toLocaleString("pt-BR")} />
+              <Stat label="Avaliadas" value={`${rated}/${stats.runs}`} />
+            </dl>
+          </div>
+          {items.length > 0 && <Records records={records} />}
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl space-y-12 px-4 pt-8">
-        <details open={!items.length} className="group rounded-3xl bg-white p-6 ring-1 ring-asfalto-100 md:p-8">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
-            <span>
-              <span className="block font-display text-3xl font-bold uppercase">Adicionar corrida</span>
-              <span className="text-sm text-asfalto-500">Escolha a prova, diga a distância e, se quiser, o seu tempo. Depois você avalia.</span>
-            </span>
-            <span className="rounded-full bg-largada-500 px-4 py-2 text-sm font-semibold text-asfalto-950 group-open:hidden">Adicionar</span>
-            <span className="hidden text-sm text-asfalto-500 group-open:inline">Fechar</span>
-          </summary>
-          <div className="mt-6 max-w-3xl">
-            <AddRunForm races={options} today={brtDay(now)} />
-          </div>
-        </details>
+      <div className="mx-auto max-w-6xl space-y-14 px-4 pt-10">
+        {showForm && (
+          <section id="adicionar" className="scroll-mt-20 rounded-3xl bg-white p-6 ring-1 ring-asfalto-100 md:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-display text-3xl font-bold uppercase">Adicionar corrida</h2>
+                <p className="text-sm text-asfalto-500">Escolha a prova, diga a distância e, se quiser, o seu tempo. Depois você avalia.</p>
+              </div>
+              {items.length > 0 && (
+                <Link href="/minhas-corridas" className="text-sm text-asfalto-500 underline hover:text-asfalto-900">
+                  Fechar
+                </Link>
+              )}
+            </div>
+            <div className="mt-6 max-w-3xl">
+              <AddRunForm races={options} today={brtDay(now)} />
+            </div>
+          </section>
+        )}
 
         {items.length ? (
-          [...years].map(([year, runs]) => <YearShelf key={year} year={year} runs={runs} />)
+          [...years].map(([year, runs], i) => <YearShelf key={year} year={year} runs={runs} first={i === 0} />)
         ) : (
           <p className="text-center text-asfalto-500">
             Sua estante está vazia. Adicione a primeira corrida acima, ou abra a página de uma prova que você correu e clique em
@@ -143,8 +166,35 @@ function Stat({ label, value, accent = false }: { label: string; value: string; 
   );
 }
 
-/** Uma prateleira por ano, com as capas (cartazes) das provas lado a lado. */
-function YearShelf({ year, runs }: { year: number; runs: ShelfItem[] }) {
+/** Melhor tempo em cada distância. Sem tempos informados, explica como aparecem. */
+function Records({ records }: { records: PersonalRecord[] }) {
+  return (
+    <div className="rounded-2xl bg-white/5 p-5 ring-1 ring-white/10">
+      <h2 className="font-display text-xl font-bold uppercase">Recordes pessoais</h2>
+      {records.length ? (
+        <ul className="mt-3 divide-y divide-white/10">
+          {records.slice(0, 5).map((r) => (
+            <li key={r.distanceKm}>
+              <Link href={`/minhas-corridas/${r.logId}`} className="group grid grid-cols-[3.5rem_1fr_auto] items-baseline gap-3 py-2.5">
+                <span className="font-display text-2xl font-extrabold text-pace-500 tabular-nums">{shortKm(r.distanceKm)}</span>
+                <span className="truncate text-sm text-asfalto-300 group-hover:text-white">{r.name}</span>
+                <span className="text-right">
+                  <span className="block font-display text-2xl leading-none font-extrabold tabular-nums">{formatFinishTime(r.seconds)}</span>
+                  <span className="text-xs text-asfalto-300 tabular-nums">{pace(r.paceSeconds)}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-asfalto-300">Informe o seu tempo nas corridas e o melhor de cada distância aparece aqui.</p>
+      )}
+    </div>
+  );
+}
+
+/** Uma prateleira por ano: as capas (cartazes) ficam em pé sobre a tábua, e o nome e a nota vêm embaixo dela. */
+function YearShelf({ year, runs, first }: { year: number; runs: ShelfItem[]; first: boolean }) {
   const km = runs.reduce((n, r) => n + (r.distanceKm ?? 0), 0);
   return (
     <section aria-labelledby={`ano-${year}`}>
@@ -157,48 +207,98 @@ function YearShelf({ year, runs }: { year: number; runs: ShelfItem[] }) {
           {km > 0 && `, ${km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`}
         </p>
       </div>
-      <ul className="mt-4 grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+      {/* Sem espaço entre colunas: cada capa leva o seu pedaço de tábua, e os pedaços formam uma tábua só na linha */}
+      <ul className="mt-4 grid grid-cols-2 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
         {runs.map((r) => (
           <li key={r.id}>
             <Cover run={r} year={year} />
           </li>
         ))}
+        {[1, 2, 3].map((k) => (
+          <li key={`vazio-${k}`} aria-hidden={!(first && k === 1) || undefined} className={emptySlotClass(runs.length, k)}>
+            <EmptySlot add={first && k === 1} />
+          </li>
+        ))}
       </ul>
-      {/* A tábua da prateleira */}
-      <div className="mt-6 h-2 rounded-full bg-asfalto-950" aria-hidden />
     </section>
+  );
+}
+
+/** Colunas da estante em cada largura: celular, md e lg (as mesmas do grid). Classes por extenso para o Tailwind achar. */
+const COLUMNS = [
+  { cols: 2, show: "block", hide: "hidden" },
+  { cols: 3, show: "md:block", hide: "md:hidden" },
+  { cols: 4, show: "lg:block", hide: "lg:hidden" },
+];
+
+/**
+ * Espaços vazios que completam a última linha, para a tábua ir de ponta a ponta.
+ * O k-ésimo vazio só aparece nas larguras em que faltam pelo menos k capas na linha.
+ */
+function emptySlotClass(count: number, k: number) {
+  return COLUMNS.map(({ cols, show, hide }) => ((cols - (count % cols)) % cols >= k ? show : hide)).join(" ");
+}
+
+/** Vaga na prateleira. A primeira da prateleira mais recente leva ao "Adicionar corrida". */
+function EmptySlot({ add }: { add: boolean }) {
+  const slot = "aspect-[4/5] rounded-t-md";
+  return (
+    <div>
+      <div className="px-2.5 sm:px-3">
+        {add ? (
+          <Link
+            href="/minhas-corridas?adicionar=1#adicionar"
+            className={`${slot} flex flex-col items-center justify-center gap-2 border-2 border-b-0 border-dashed border-asfalto-300 text-sm font-semibold text-asfalto-500 hover:border-largada-500 hover:text-largada-600`}
+          >
+            <span className="font-display text-4xl leading-none">+</span>
+            Adicionar corrida
+          </Link>
+        ) : (
+          <div className={slot} />
+        )}
+      </div>
+      <div className="h-3 border-t-2 border-asfalto-700 bg-asfalto-950 shadow-[0_6px_8px_-4px_rgb(0_0_0/0.35)]" />
+    </div>
   );
 }
 
 function Cover({ run, year }: { run: ShelfItem; year: number }) {
   const place = run.city && run.state ? `${run.city}/${run.state}` : null;
   return (
-    <Link href={`/minhas-corridas/${run.id}`} className="group block rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-largada-500">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-md bg-asfalto-950 shadow-[6px_8px_0_0_rgb(0_0_0/0.12)] ring-1 ring-asfalto-950/10 transition-transform group-hover:-translate-y-1">
-        <RunCover photoUrl={run.photoUrl} imageUrl={run.imageUrl} type={run.type} name={run.name} year={year} place={place} />
-        {run.distanceKm !== null && (
-          <span className="absolute top-3 left-3 rounded bg-white px-2 py-0.5 font-display text-base font-extrabold text-asfalto-950 tabular-nums shadow">
-            {shortKm(run.distanceKm)}
-          </span>
-        )}
-        {run.points !== null && (
-          <span className="absolute top-3 right-3 rounded bg-pace-500 px-1.5 py-0.5 text-xs font-bold text-asfalto-950 tabular-nums shadow">
-            +{run.points} pts
-          </span>
-        )}
+    <Link href={`/minhas-corridas/${run.id}`} className="group block focus-visible:outline-none">
+      <div className="px-2.5 sm:px-3">
+        <div className="relative aspect-[4/5] overflow-hidden rounded-t-md bg-asfalto-950 ring-1 ring-asfalto-950/10 transition-transform group-hover:-translate-y-1.5 group-focus-visible:-translate-y-1.5 group-focus-visible:ring-4 group-focus-visible:ring-largada-500">
+          <RunCover photoUrl={run.photoUrl} imageUrl={run.imageUrl} type={run.type} name={run.name} year={year} place={place} />
+        </div>
       </div>
-      <p className="mt-3 line-clamp-2 leading-tight font-semibold group-hover:text-largada-600">{run.name}</p>
-      <p className="mt-1 text-sm text-asfalto-500">
-        {formatDateShort(run.date)}
-        {place && ` · ${place}`}
-        {run.finishSeconds !== null && ` · ${formatFinishTime(run.finishSeconds)}`}
-      </p>
-      <div className="mt-1.5">
-        {run.rating !== null ? (
-          <Stars value={run.rating} className="h-4 w-4" />
-        ) : (
-          <span className="text-sm font-semibold text-largada-600">Avaliar</span>
-        )}
+      {/* Tábua: borda clara em cima e sombra embaixo, para a capa parecer apoiada */}
+      <div className="h-3 border-t-2 border-asfalto-700 bg-asfalto-950 shadow-[0_6px_8px_-4px_rgb(0_0_0/0.35)]" aria-hidden />
+
+      <div className="px-2.5 pt-3 sm:px-3">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {run.distanceKm !== null && (
+            <span className="font-display text-lg leading-none font-extrabold tabular-nums">{shortKm(run.distanceKm)}</span>
+          )}
+          {run.finishSeconds !== null && <span className="text-sm font-semibold tabular-nums">{formatFinishTime(run.finishSeconds)}</span>}
+          {run.points !== null && (
+            <span className="rounded bg-pace-500 px-1.5 py-0.5 text-xs font-bold text-asfalto-950 tabular-nums">+{run.points} pts</span>
+          )}
+        </p>
+        <p className="mt-1.5 line-clamp-2 leading-tight font-semibold group-hover:text-largada-600">{run.name}</p>
+        <p className="mt-1 text-sm text-asfalto-500">
+          {formatDateShort(run.date)}
+          {place && ` · ${place}`}
+        </p>
+        <div className="mt-2">
+          {run.rating !== null ? (
+            <span className="flex items-center gap-1.5">
+              <Stars value={run.rating} className="h-4 w-4" />
+              <span className="text-sm font-semibold tabular-nums">{run.rating.toLocaleString("pt-BR")}</span>
+            </span>
+          ) : (
+            <span className="text-sm font-semibold text-largada-600">Avaliar</span>
+          )}
+        </div>
       </div>
     </Link>
   );

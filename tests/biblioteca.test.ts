@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasStarted, runLogData, runLogSchema, shelfStats, summarizeRatings } from "@/domain/biblioteca/biblioteca";
+import { hasStarted, personalRecords, runLogData, runLogSchema, shelfStats, summarizeRatings } from "@/domain/biblioteca/biblioteca";
 
 describe("runLogSchema", () => {
   it("aceita tudo em branco: a corrida entra na estante sem avaliação", () => {
@@ -72,5 +72,23 @@ describe("estante", () => {
     const now = new Date("2026-11-03T02:30:00Z"); // 23h30 do dia 2 em Brasília
     expect(hasStarted(new Date("2026-11-02T10:00:00Z"), now)).toBe(true);
     expect(hasStarted(new Date("2026-11-03T10:00:00Z"), now)).toBe(false);
+  });
+});
+
+describe("personalRecords", () => {
+  it("fica com o melhor tempo de cada distância e ignora corrida sem tempo", () => {
+    const r = personalRecords([
+      { id: "a", name: "A", distanceKm: 5, finishSeconds: 1800 },
+      { id: "b", name: "B", distanceKm: 5, finishSeconds: 1650 },
+      { id: "c", name: "C", distanceKm: 10, finishSeconds: 3600 },
+      { id: "d", name: "D", distanceKm: 21.1, finishSeconds: null },
+      { id: "e", name: "E", distanceKm: 3, finishSeconds: 1000 },
+    ]);
+    expect(r.map((x) => [x.distanceKm, x.logId])).toEqual([
+      [3, "e"],
+      [5, "b"],
+      [10, "c"],
+    ]);
+    expect(r[1].paceSeconds).toBe(330);
   });
 });
