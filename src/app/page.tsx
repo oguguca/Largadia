@@ -67,6 +67,8 @@ export default function Home() {
       </section>
 
       <div className="mx-auto max-w-6xl space-y-12 px-4 py-10">
+        <About />
+
         <Suspense>
           <Featured />
         </Suspense>
@@ -103,6 +105,57 @@ export default function Home() {
 
       </div>
     </>
+  );
+}
+
+const aboutPoints = [
+  {
+    title: "Encontre sua prova",
+    text: "Corridas de rua do Brasil inteiro num calendário só, por mês, estado ou distância: do 5k à maratona.",
+    icon: "M7 3v3m10-3v3M4 9h16M5 6h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z",
+  },
+  {
+    title: "Inscrição no site oficial",
+    text: "Você se inscreve direto com o organizador. O Largadia não cobra nada para você correr.",
+    icon: "M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5",
+  },
+  {
+    title: "Cada prova vale pontos",
+    text: "No Premium, suas corridas entram num ranking por temporada e você concorre a sorteios de prêmios.",
+    icon: "M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0zM7 6H4a3 3 0 003 4M17 6h3a3 3 0 01-3 4",
+  },
+];
+
+/** Apresentação curta do Largadia, antes do calendário: o que é e como funciona. */
+function About() {
+  return (
+    <section aria-labelledby="sobre-titulo" className="grid gap-8 rounded-3xl bg-white p-6 ring-1 ring-asfalto-100 md:p-8 lg:grid-cols-5 lg:items-center">
+      <div className="lg:col-span-2">
+        <h2 id="sobre-titulo" className="font-display text-3xl font-bold uppercase md:text-4xl">
+          O que é o Largadia
+        </h2>
+        <p className="mt-3 text-asfalto-700">
+          O Largadia é um calendário de corridas de rua. Juntamos num lugar só as provas que hoje ficam espalhadas por várias
+          plataformas de inscrição, para você ver o que vem pela frente e escolher a próxima largada sem perder tempo.
+        </p>
+        <Link href="/calendario" className="mt-5 inline-block font-semibold text-largada-600 hover:underline">
+          Abrir o calendário completo
+        </Link>
+      </div>
+      <ul className="grid gap-4 sm:grid-cols-3 lg:col-span-3">
+        {aboutPoints.map((p) => (
+          <li key={p.title} className="rounded-2xl bg-asfalto-50 p-5">
+            <span className="grid size-11 place-items-center rounded-xl bg-asfalto-950 text-largada-500" aria-hidden>
+              <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d={p.icon} />
+              </svg>
+            </span>
+            <p className="mt-4 font-semibold">{p.title}</p>
+            <p className="mt-1 text-sm text-asfalto-500">{p.text}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
