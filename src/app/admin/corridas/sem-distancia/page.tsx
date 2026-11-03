@@ -60,6 +60,10 @@ export default async function SemDistanciaPage(props: PageProps<"/admin/corridas
           {total} {total === 1 ? "prova futura não tem" : "provas futuras não têm"} distância e não aparecem no filtro de distância da busca.
           Olhe o cartaz (clique para ampliar) ou a página da inscrição, marque as distâncias e salve.
         </p>
+        <p className="mt-2 rounded-xl bg-pace-500/20 px-4 py-3 text-sm">
+          <strong>Mais rápido na Ticket Sports:</strong> clique em “Ver na Ticket Sports”, espere a página carregar e clique no favorito
+          “Enviar ao Largadia”. Os km da descrição entram sozinhos nesta prova, sem abrir o cadastro.
+        </p>
       </div>
 
       <nav className="flex flex-wrap gap-2" aria-label="Estados">

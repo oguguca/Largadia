@@ -4,6 +4,7 @@ import { addMonths } from "@/domain/assinatura/status";
 import { rankTotals, seasonOf } from "@/domain/pontos/temporada";
 import { claimSchema } from "@/domain/pontos/pontos";
 import { parseWrittenDate, yescomId } from "@/domain/importacao/calendario";
+import { extractDistances } from "@/domain/importacao/extrair";
 
 describe("datas que não existem", () => {
   it("parseDateBrt recusa 30/02 e mês 13 em vez de transbordar", () => {
@@ -87,5 +88,11 @@ describe("virada da temporada", () => {
     expect(inside(lastRun, old)).toBe(true);
     expect(inside(lastRun, fresh)).toBe(false);
     expect(inside(firstRun, fresh)).toBe(true);
+  });
+});
+describe("km da descrição da Ticket Sports", () => {
+  it("lê as modalidades e ignora horários", () => {
+    const text = "Corrida de 10 km - Corrida de 6.1 km - Caminhada de 2 km\n18h00 – Largada de 10 km (Largada Única)\n19h00 – Início da largada em ondas de 6.1 km";
+    expect(extractDistances(text)).toEqual([2, 6.1, 10]);
   });
 });

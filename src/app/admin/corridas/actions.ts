@@ -14,7 +14,7 @@ import { extractRaceDraft, type RaceDraft } from "@/domain/importacao/extrair";
 import { draftToRace, IMPORT_REVIEW_NOTE, MAX_LINKS_PER_BATCH, parseLinks } from "@/domain/importacao/lote";
 import { addFromRegulation, draftFromRenderedPage, renderedPageSchema } from "@/domain/importacao/pagina-renderizada";
 import { readPublicPdfText } from "@/domain/importacao/ler-pdf";
-import { calendarPayloadSchema, cardKey, cardToRace } from "@/domain/importacao/calendario";
+import { calendarPayloadSchema, cardKey, cardToRace, ticketSportsId } from "@/domain/importacao/calendario";
 
 export type FormState = {
   errors?: Record<string, string[]>;
@@ -349,9 +349,20 @@ export async function knownCalendarKeys(payload: unknown): Promise<string[]> {
     .map((c) => c.key);
 }
 
-export type PageDraftState = { draft?: RaceDraft; error?: string; warning?: string };
+export type PageDraftState = {
+  draft?: RaceDraft;
+  error?: string;
+  warning?: string;
+  /** A prova já estava no site sem distância e ganhou as da página */
+  completed?: { name: string; slug: string; distances: number[] };
+  /** A prova já estava no site e não faltava nada que a página informe */
+  alreadyComplete?: { name: string; slug: string };
+};
 
-/** Recebe a página enviada pelo botão do navegador e devolve o rascunho completo. Nada é salvo aqui. */
+/**
+ * Recebe a página enviada pelo botão do navegador. Prova nova: devolve o rascunho, sem salvar.
+ * Prova que já existe e está sem distância: grava as distâncias da página e nada mais.
+ */
 export async function draftFromPage(payload: unknown): Promise<PageDraftState> {
   await requireAdmin();
   const page = renderedPageSchema.safeParse(payload);
@@ -370,6 +381,28 @@ export async function draftFromPage(payload: unknown): Promise<PageDraftState> {
   }
   if (!draft.distances?.length) missing.push("distâncias");
   if (draft.priceMin === undefined) missing.push("preço");
+
+  // Prova que já veio pelo calendário: em vez de abrir o cadastro, completa o que o calendário não traz.
+  // Na Ticket Sports a descrição com os km só existe na página aberta no navegador, que é o que o botão envia.
+  const externalId = ticketSportsId(page.data.url);
+  const existing = await db.race.findFirst({
+    where: {
+      OR: [
+        ...(externalId ? [{ externalId }] : []),
+        { registrationUrl: page.data.url },
+        { sourceUrl: page.data.url },
+      ],
+    },
+    select: { id: true, name: true, slug: true, distancesKm: true },
+  });
+  if (existing) {
+    const distances = !existing.distancesKm.length && draft.distances?.length ? draft.distances : undefined;
+    // Preço fica de fora: lotes e taxas confundem a leitura, e preço errado é pior que "preço no site"
+    if (!distances) return { alreadyComplete: { name: existing.name, slug: existing.slug } };
+    await db.race.update({ where: { id: existing.id }, data: { distancesKm: distances } });
+    updateTag(RACES_TAG);
+    return { completed: { name: existing.name, slug: existing.slug, distances } };
+  }
 
   const dup = await db.race.findFirst({
     where: {
