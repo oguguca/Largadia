@@ -10,6 +10,7 @@ import { grantPixPayment } from "@/domain/assinatura/pix";
 import { stripe } from "@/lib/stripe";
 import { syncSubscription } from "@/domain/assinatura/sync";
 import { claimStatusLabels } from "@/domain/pontos/pontos";
+import { seasonOf } from "@/domain/pontos/temporada";
 import { db } from "@/lib/db";
 import { assinar, assinarPix, gerenciarAssinatura, sair } from "./actions";
 import { PIX_PLANS, PREMIUM_PRICE_CENTS } from "@/config/assinatura";
@@ -151,10 +152,15 @@ async function Conta({ searchParams }: { searchParams: PageProps<"/conta">["sear
   );
 }
 
-/** Saldo (só comprovações aprovadas) e histórico de "Eu corri". */
+/** Saldo da temporada atual (só comprovações aprovadas) e histórico de "Eu corri". */
 async function PointsSummary({ userId }: { userId: string }) {
+  // Mesma regra do ranking: cada temporada começa do zero
+  const season = seasonOf(new Date());
   const [total, claims] = await Promise.all([
-    db.pointClaim.aggregate({ where: { userId, status: "APROVADA" }, _sum: { points: true } }),
+    db.pointClaim.aggregate({
+      where: { userId, status: "APROVADA", raceDate: { gte: season.start, lt: season.end } },
+      _sum: { points: true },
+    }),
     db.pointClaim.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -165,7 +171,9 @@ async function PointsSummary({ userId }: { userId: string }) {
   return (
     <section className="rounded-2xl bg-white p-5 ring-1 ring-asfalto-100">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-xl font-bold uppercase">Meus pontos</h2>
+        <h2 className="font-display text-xl font-bold uppercase">
+          Meus pontos <span className="font-sans text-sm font-normal text-asfalto-500 normal-case">na temporada {season.label}</span>
+        </h2>
         <p className="font-display text-4xl font-extrabold tabular-nums">{(total._sum.points ?? 0).toLocaleString("pt-BR")}</p>
       </div>
       {claims.length ? (

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseDateBrt } from "@/lib/dates";
 import { addMonths } from "@/domain/assinatura/status";
-import { rankTotals } from "@/domain/pontos/temporada";
+import { rankTotals, seasonOf } from "@/domain/pontos/temporada";
 import { claimSchema } from "@/domain/pontos/pontos";
 import { parseWrittenDate, yescomId } from "@/domain/importacao/calendario";
 
@@ -73,5 +73,19 @@ describe("registro de corrida", () => {
     });
     expect(r.success).toBe(false);
     expect(r.error?.issues.some((i) => i.path[0] === "finishTime")).toBe(false);
+  });
+});
+
+describe("virada da temporada", () => {
+  it("corrida de 31/12 conta na temporada que acaba; a de 01/01 já entra na nova, que começa do zero", () => {
+    const old = seasonOf(new Date("2026-12-15T12:00:00Z"));
+    const fresh = seasonOf(new Date("2027-01-01T03:30:00Z")); // 01/01 00h30 em Brasília
+    const inside = (d: Date, s: { start: Date; end: Date }) => d >= s.start && d < s.end;
+    const lastRun = new Date("2027-01-01T01:00:00Z"); // 31/12 22h em Brasília
+    const firstRun = new Date("2027-01-01T10:00:00Z"); // 01/01 7h em Brasília
+    expect(fresh.label).not.toBe(old.label);
+    expect(inside(lastRun, old)).toBe(true);
+    expect(inside(lastRun, fresh)).toBe(false);
+    expect(inside(firstRun, fresh)).toBe(true);
   });
 });
