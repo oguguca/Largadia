@@ -1,6 +1,5 @@
 import { distanceBuckets, priceOptions, raceTypeLabels, UFS } from "@/config/corridas";
 import type { SearchFilters } from "@/domain/corridas/filtros";
-import { LocationField } from "./location-field";
 
 const field = "w-full rounded-lg border border-asfalto-300 bg-white px-3 py-2 text-sm";
 const label = "text-xs font-semibold text-asfalto-500 uppercase";
@@ -39,11 +38,6 @@ export function SearchFiltersForm({ filters }: { filters: SearchFilters }) {
       </div>
 
       {filters.cidade && <input type="hidden" name="cidade" value={filters.cidade} />}
-
-      <LocationField
-        initial={filters.lat !== undefined && filters.lng !== undefined ? { lat: filters.lat, lng: filters.lng } : undefined}
-        initialRadius={filters.raio}
-      />
 
       <fieldset className="space-y-1.5">
         <legend className={label}>Distância</legend>

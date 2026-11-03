@@ -70,7 +70,7 @@ async function Results({ searchParams }: { searchParams: PageProps<"/busca">["se
             {hasFilters ? (
               <>
                 <p className="font-semibold">Nada por aqui com esses filtros.</p>
-                <p className="mt-1 text-sm text-asfalto-500">Tente aumentar o raio, mudar as datas ou remover algum filtro.</p>
+                <p className="mt-1 text-sm text-asfalto-500">Tente mudar as datas ou remover algum filtro.</p>
               </>
             ) : (
               <>
