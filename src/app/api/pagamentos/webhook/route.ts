@@ -42,7 +42,11 @@ export async function POST(request: Request) {
     case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
-      const sub = event.data.object;
+      // Os eventos podem chegar fora de ordem: vale o estado atual no Stripe, não o que veio no evento
+      const sub =
+        event.type === "customer.subscription.deleted"
+          ? event.data.object
+          : await stripe().subscriptions.retrieve(event.data.object.id);
       // Assinatura de cartão encerrada não derruba um período Pix já pago
       const givesAccess = ["active", "trialing", "past_due"].includes(sub.status);
       await db.user.updateMany({
