@@ -357,11 +357,8 @@ async function Raffles() {
           raffle={r}
           viewer={viewer}
           entered={entered.has(r.id)}
-        >
-          <p className="text-sm whitespace-pre-line text-asfalto-700">
-            {r.description}
-          </p>
-        </RaffleCard>
+          rules={r.description}
+        />
       ))}
     </div>
   );

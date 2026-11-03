@@ -32,8 +32,9 @@ export function LiveEntryCount({ raffleId, initial }: { raffleId: string; initia
   }, [raffleId]);
 
   return (
-    <p className="mt-1 text-sm font-semibold" aria-live="polite">
-      👥 {count.toLocaleString("pt-BR")} {count === 1 ? "pessoa participando" : "pessoas participando"}
+    <p className="text-sm text-asfalto-500" aria-live="polite">
+      <strong className="font-display text-lg text-asfalto-950 tabular-nums">{count.toLocaleString("pt-BR")}</strong>{" "}
+      {count === 1 ? "participante" : "participantes"}
     </p>
   );
 }
