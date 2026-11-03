@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import {
-  getCitiesWithRaces,
   getFeaturedRaces,
   getMonthRaces,
   getOpeningSoonRaces,
@@ -102,9 +101,6 @@ export default function Home() {
           </Suspense>
         </Section>
 
-        <Suspense>
-          <Cities />
-        </Suspense>
       </div>
     </>
   );
@@ -344,29 +340,6 @@ async function OpeningSoon() {
   const races = await getOpeningSoonRaces();
   if (!races.length) return <p className="text-asfalto-500">Nenhuma inscrição prevista para abrir em breve.</p>;
   return <RaceGrid races={races} />;
-}
-
-async function Cities() {
-  const cities = await getCitiesWithRaces();
-  // Sem provas publicadas a seção some, em vez de mostrar só o título
-  if (!cities.length) return null;
-  return (
-    <Section title="Corridas por cidade">
-      <ul className="flex flex-wrap gap-2">
-        {cities.slice(0, 24).map((c) => (
-          <li key={c.citySlug}>
-            <Link
-              href={`/corridas/${c.citySlug}`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm ring-1 ring-asfalto-100 hover:ring-largada-500"
-            >
-              {c.city}/{c.state}
-              <span className="rounded-full bg-asfalto-100 px-1.5 text-xs font-semibold">{c.count}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </Section>
-  );
 }
 
 function GridSkeleton() {
