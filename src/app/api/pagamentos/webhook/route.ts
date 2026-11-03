@@ -2,12 +2,12 @@ import type Stripe from "stripe";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { PIX_STATUS, subscriptionFields } from "@/domain/assinatura/status";
-import { grantPixPayment } from "@/domain/assinatura/pix";
+import { grantPixPayment, revokePixPayment } from "@/domain/assinatura/pix";
 
 /**
  * Webhook do Stripe: é daqui, e não do retorno do Checkout, que vem a confirmação do pagamento.
  * Eventos usados: checkout.session.completed, checkout.session.async_payment_succeeded (Pix)
- * e customer.subscription.created/updated/deleted.
+ * customer.subscription.created/updated/deleted e charge.refunded (reembolso de Pix).
  */
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -53,6 +53,13 @@ export async function POST(request: Request) {
         where: { stripeCustomerId: String(sub.customer), ...(givesAccess ? {} : { NOT: { subscriptionStatus: PIX_STATUS } }) },
         data: subscriptionFields(sub),
       });
+      break;
+    }
+    case "charge.refunded": {
+      const charge = event.data.object;
+      // Só reembolso total tira o período; parcial é um acerto de valor
+      const intent = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+      if (charge.refunded && intent) await revokePixPayment(intent);
       break;
     }
   }

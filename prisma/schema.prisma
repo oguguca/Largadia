@@ -253,6 +253,10 @@ model PixPayment {
   amountCents Int
   /// Premium liberado até esta data por este pagamento
   validUntil  DateTime
+  /// PaymentIntent do Stripe, para achar o pagamento quando vier um reembolso
+  paymentIntentId String?   @unique
+  /// Reembolsado: os meses deste pagamento já foram descontados do Premium
+  refundedAt      DateTime?
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
