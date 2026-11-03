@@ -31,14 +31,14 @@ export function ImageField({ initialUrl, error }: { initialUrl: string; error?: 
             <input
               name="imageFile"
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/*"
               className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-asfalto-950 file:px-3 file:py-2 file:font-semibold file:text-white hover:file:bg-asfalto-800"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 setPreview(file ? URL.createObjectURL(file) : null);
               }}
             />
-            <span className="block text-xs text-asfalto-500">JPG, PNG ou WebP até 3,5 MB. É reduzida automaticamente.</span>
+            <span className="block text-xs text-asfalto-500">JPG, PNG, WebP, GIF ou AVIF até 3,5 MB. É reduzida automaticamente.</span>
           </label>
           <label className="block space-y-1">
             <span className="text-xs font-semibold text-asfalto-700">Ou cole um link</span>
