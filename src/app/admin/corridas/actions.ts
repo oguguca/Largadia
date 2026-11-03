@@ -396,3 +396,24 @@ export async function removeRace(id: string) {
   updateTag(RACES_TAG);
   redirect("/admin/corridas?excluida=1");
 }
+
+const distancesSchema = z.array(z.number().min(0.5).max(300)).min(1, "Escolha ao menos uma distância").max(12);
+
+/**
+ * Completa as distâncias de uma prova importada sem elas (tela "Sem distância").
+ * Só grava se a prova ainda estiver sem distância: não sobrescreve o que foi revisado na edição completa.
+ */
+export async function setRaceDistances(id: string, distances: number[]): Promise<{ error?: string }> {
+  await requireAdmin();
+  const parsed = distancesSchema.safeParse(
+    [...new Set(distances.map((d) => Math.round(d * 1000) / 1000))].sort((a, b) => a - b),
+  );
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Distância inválida" };
+  const done = await db.race.updateMany({
+    where: { id: idSchema.parse(id), distancesKm: { isEmpty: true } },
+    data: { distancesKm: parsed.data },
+  });
+  if (!done.count) return { error: "Essa prova já tem distância. Atualize a página." };
+  updateTag(RACES_TAG);
+  return {};
+}

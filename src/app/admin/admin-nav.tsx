@@ -12,6 +12,7 @@ const ICONS = {
   todas: "M4 6h16M4 12h16M4 18h10",
   pendentes: "M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
   nova: "M12 5v14M5 12h14",
+  regua: "M3 17L17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2",
   importar: "M12 4v11m0 0l-4-4m4 4l4-4M5 20h14",
   pontos: "M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z",
   assinantes: "M16 19v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1M9 10a3 3 0 100-6 3 3 0 000 6zM22 19v-1a4 4 0 00-3-3.9M16 4.1a3 3 0 010 5.8",
@@ -22,6 +23,7 @@ const ICONS = {
 const RACES: Item[] = [
   { href: "/admin/corridas", label: "Todas as corridas", icon: ICONS.todas },
   { href: "/admin/corridas?status=PENDENTE", label: "Pendentes", icon: ICONS.pendentes },
+  { href: "/admin/corridas/sem-distancia", label: "Sem distância", icon: ICONS.regua },
   { href: "/admin/corridas/nova", label: "Nova corrida", icon: ICONS.nova },
   { href: "/admin/corridas/importar", label: "Importar em lote", icon: ICONS.importar },
 ];
