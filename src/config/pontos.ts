@@ -6,6 +6,8 @@ export const pontos = {
   porKm: 1,
   /** Prazo para enviar a comprovação depois da largada */
   diasParaEnviar: 60,
+  /** Dias para trás que a lista "Registrar corrida" mostra, além de hoje; as mais antigas entram por "Minha prova não está na lista" */
+  diasNaLista: 7,
 } as const;
 
 /** Ranking por temporada. Com `premio` preenchido, quem termina em 1º leva o prêmio. */

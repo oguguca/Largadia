@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { UFS } from "@/config/corridas";
 import { OTHER_RACE } from "@/domain/pontos/pontos";
+import { pontos } from "@/config/pontos";
 import type { ClaimState } from "@/domain/pontos/enviar";
 import { ClaimDetailsFields, DistanceField, field, FieldError, keepValuesOnSubmit } from "../corrida/[slug]/claim-form";
 import { registerRun } from "./actions";
@@ -57,8 +58,8 @@ export function RegisterRunForm({ races, today, earliest }: { races: RunOption[]
           <option value={OTHER_RACE}>Minha prova não está na lista</option>
         </select>
         <span className="block text-xs text-asfalto-500">
-          A lista traz as provas do calendário que já aconteceram. Correu uma que não está aqui? Escolha &quot;Minha prova não está na
-          lista&quot; e preencha nome, data e cidade.
+          A lista traz as provas do calendário de hoje e dos últimos {pontos.diasNaLista} dias. Correu uma mais antiga ou que não está aqui? Escolha
+          &quot;Minha prova não está na lista&quot; e preencha nome, data e cidade.
         </span>
         <FieldError msg={errors.raceId?.[0]} />
       </label>

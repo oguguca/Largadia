@@ -167,12 +167,15 @@ async function MemberArea({ user }: { user: Member }) {
         race: { select: { name: true, startsAt: true, slug: true } },
       },
     }),
-    // Provas que ainda aceitam comprovação: já largaram e estão dentro do prazo
+    // Provas de hoje e dos últimos dias (pontos.diasNaLista); as mais antigas, ainda no prazo, entram informadas à mão
     db.race.findMany({
       where: {
         moderationStatus: "APROVADA",
         // Provas de hoje já entram: o horário das importadas é estimado
-        startsAt: { gte: since, lt: endOfTodayBrt },
+        startsAt: {
+          gte: new Date(Math.max(since.getTime(), endOfTodayBrt.getTime() - (pontos.diasNaLista + 1) * 86_400_000)),
+          lt: endOfTodayBrt,
+        },
       },
       orderBy: { startsAt: "desc" },
       take: 400,
