@@ -54,7 +54,7 @@ export default function Home() {
             <Suspense fallback={<p className="mt-6 h-14" />}>
               <HeroStats />
             </Suspense>
-            <form action="/busca" className="mt-6 flex gap-2 rounded-2xl bg-white p-1.5 shadow-lg shadow-black/30">
+            <form action="/busca" className="mt-6 flex gap-2 rounded-2xl bg-white p-1.5 shadow-lg shadow-black/30 focus-within:ring-4 focus-within:ring-largada-500/60">
               <label htmlFor="q" className="sr-only">
                 Buscar corrida
               </label>
@@ -78,7 +78,7 @@ export default function Home() {
                 <Link
                   key={href}
                   href={href}
-                  className="rounded-full border border-white/20 px-3 py-1 hover:border-pace-500 hover:text-pace-500"
+                  className="inline-flex min-h-11 items-center rounded-full border border-white/20 px-4 hover:border-pace-500 hover:text-pace-500"
                 >
                   {label}
                 </Link>
