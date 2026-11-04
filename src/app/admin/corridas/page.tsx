@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { formatDateShort } from "@/lib/format";
 import type { Prisma } from "@/generated/prisma/client";
-import { setModeration } from "./actions";
+import { removeRace, setModeration } from "./actions";
 
 const filtersSchema = z.object({
   status: z.enum(["PENDENTE", "APROVADA", "RECUSADA"]).optional().catch(undefined),
@@ -56,6 +56,7 @@ export default async function AdminCorridasPage(props: PageProps<"/admin/corrida
       featured: true,
       couponCode: true,
       lat: true,
+      moderationNote: true,
       _count: { select: { clicks: true } },
     },
   });
@@ -102,6 +103,7 @@ export default async function AdminCorridasPage(props: PageProps<"/admin/corrida
                 {r.featured && " · ⭐ destaque"}
                 {r.couponCode && ` · cupom ${r.couponCode}`}
                 {r.lat === null && " · ⚠️ sem coordenadas"}
+                {r.moderationNote && " · 📝 importada, revisar"}
               </p>
             </div>
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusStyle[r.moderationStatus]}`}>
@@ -122,6 +124,16 @@ export default async function AdminCorridasPage(props: PageProps<"/admin/corrida
                 ver ↗
               </Link>
             )}
+            <details className="group flex items-center">
+              <summary className="cursor-pointer list-none rounded-lg px-2 py-1 text-xs text-red-700 ring-1 ring-red-200 hover:bg-red-50">
+                <span className="group-open:hidden">Remover</span>
+                <span className="hidden group-open:inline">Cancelar</span>
+              </summary>
+              <form action={removeRace.bind(null, r.id)} className="mt-1 flex items-center gap-2 text-xs">
+                <span className="text-red-700">Remover de vez?</span>
+                <button className="rounded-lg bg-red-600 px-2 py-1 font-semibold text-white">Confirmar</button>
+              </form>
+            </details>
           </li>
         ))}
       </ul>

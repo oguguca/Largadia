@@ -5,6 +5,7 @@ import { addDays, parseDateBrt, startOfDayBrt, weekendWindow } from "@/lib/dates
 import { boundingBox, distanceKm } from "@/lib/geo";
 import { SEARCH_PAGE_SIZE } from "@/config/corridas";
 import type { Prisma } from "@/generated/prisma/client";
+import type { RegistrationStatus } from "@/generated/prisma/enums";
 import { matchesDistanceBucket, type SearchFilters } from "./filtros";
 
 export const RACES_TAG = "corridas";
@@ -22,8 +23,11 @@ const cardSelect = {
   type: true,
   priceMinCents: true,
   priceMaxCents: true,
+  priceKnown: true,
   registrationStatus: true,
   registrationOpensAt: true,
+  registrationClosesAt: true,
+  timeKnown: true,
   imageUrl: true,
   lat: true,
   lng: true,
@@ -36,8 +40,19 @@ export type RaceCard = Prisma.RaceGetPayload<{ select: typeof cardSelect }> & {
   isPast?: boolean;
 };
 
-function markPast<T extends { startsAt: Date }>(races: T[], now: Date): (T & { isPast: boolean })[] {
-  return races.map((r) => ({ ...r, isPast: r.startsAt < now }));
+type LiveFields = { startsAt: Date; registrationStatus: RegistrationStatus; registrationClosesAt: Date | null };
+
+/**
+ * Campos que dependem do relógio, calculados na consulta (não na renderização): a prova já aconteceu
+ * e, passado o último dia de inscrição, a situação vira "encerradas" sem ninguém precisar editar.
+ */
+export function withLiveStatus<T extends LiveFields>(race: T, now: Date): T & { isPast: boolean } {
+  const closed = race.registrationStatus === "ABERTAS" && race.registrationClosesAt && race.registrationClosesAt.getTime() + 86_400_000 <= now.getTime();
+  return { ...race, isPast: race.startsAt < now, registrationStatus: closed ? "ENCERRADAS" : race.registrationStatus };
+}
+
+function markPast<T extends LiveFields>(races: T[], now: Date): (T & { isPast: boolean })[] {
+  return races.map((r) => withLiveStatus(r, now));
 }
 
 const publicFuture = (now: Date): Prisma.RaceWhereInput => ({
@@ -50,12 +65,13 @@ export async function getWeekendRaces(): Promise<RaceCard[]> {
   cacheLife("hours");
   cacheTag(RACES_TAG);
   const { start, end } = weekendWindow(new Date());
-  return db.race.findMany({
+  const races = await db.race.findMany({
     where: { moderationStatus: "APROVADA", startsAt: { gte: start, lt: end } },
     orderBy: { startsAt: "asc" },
     take: 12,
     select: cardSelect,
   });
+  return markPast(races, new Date());
 }
 
 export async function getOpeningSoonRaces(): Promise<RaceCard[]> {
@@ -63,24 +79,26 @@ export async function getOpeningSoonRaces(): Promise<RaceCard[]> {
   cacheLife("hours");
   cacheTag(RACES_TAG);
   const now = new Date();
-  return db.race.findMany({
+  const races = await db.race.findMany({
     where: { ...publicFuture(now), registrationStatus: "EM_BREVE" },
     orderBy: [{ registrationOpensAt: { sort: "asc", nulls: "last" } }, { startsAt: "asc" }],
     take: 8,
     select: cardSelect,
   });
+  return markPast(races, now);
 }
 
 export async function getFeaturedRaces(): Promise<RaceCard[]> {
   "use cache";
   cacheLife("hours");
   cacheTag(RACES_TAG);
-  return db.race.findMany({
+  const races = await db.race.findMany({
     where: { ...publicFuture(new Date()), featured: true },
     orderBy: [{ featuredOrder: { sort: "asc", nulls: "last" } }, { startsAt: "asc" }],
     take: 8,
     select: cardSelect,
   });
+  return markPast(races, new Date());
 }
 
 /** Provas de um mês (horário de Brasília), incluindo as que já aconteceram. */
@@ -102,12 +120,27 @@ export async function getUpcomingRaces(take = 8): Promise<RaceCard[]> {
   "use cache";
   cacheLife("hours");
   cacheTag(RACES_TAG);
-  return db.race.findMany({
+  const races = await db.race.findMany({
     where: publicFuture(new Date()),
     orderBy: { startsAt: "asc" },
     take,
     select: cardSelect,
   });
+  return markPast(races, new Date());
+}
+
+/** Provas futuras por UF, da que tem mais para a que tem menos. */
+export async function getStatesWithRaces(): Promise<{ state: string; count: number }[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(RACES_TAG);
+  const rows = await db.race.groupBy({
+    by: ["state"],
+    where: publicFuture(new Date()),
+    _count: { _all: true },
+    orderBy: { _count: { state: "desc" } },
+  });
+  return rows.map((r) => ({ state: r.state, count: r._count._all }));
 }
 
 export async function getRaceBySlug(slug: string) {
@@ -115,7 +148,7 @@ export async function getRaceBySlug(slug: string) {
   cacheLife("hours");
   cacheTag(RACES_TAG, `corrida:${slug}`);
   const race = await db.race.findFirst({ where: { slug, moderationStatus: "APROVADA" } });
-  return race ? { ...race, isPast: race.startsAt < new Date() } : null;
+  return race ? withLiveStatus(race, new Date()) : null;
 }
 
 /** Cidades com corridas futuras, para a página da cidade e o sitemap. */
@@ -133,12 +166,13 @@ export async function getCityRaces(citySlug: string): Promise<RaceCard[]> {
   "use cache";
   cacheLife("hours");
   cacheTag(RACES_TAG);
-  return db.race.findMany({
+  const races = await db.race.findMany({
     where: { ...publicFuture(new Date()), citySlug },
     orderBy: { startsAt: "asc" },
     take: 100,
     select: cardSelect,
   });
+  return markPast(races, new Date());
 }
 
 export async function getCitiesWithRaces() {
@@ -188,7 +222,6 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
   if (filters.uf) where.state = filters.uf;
   if (filters.cidade) where.citySlug = filters.cidade;
   if (filters.tipo) where.type = filters.tipo;
-  if (filters.preco !== undefined) where.priceMinCents = { lte: Math.round(filters.preco * 100) };
 
   const from = filters.de ? parseDateBrt(filters.de) : null;
   const to = filters.ate ? parseDateBrt(filters.ate) : null;
@@ -216,7 +249,6 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
   });
 
   let items: RaceCard[] = markPast(candidates, now);
-  if (filters.dist) items = items.filter((r) => matchesDistanceBucket(r.distancesKm, filters.dist!));
   if (hasGeo) {
     items = items
       .map((r) => ({
@@ -225,6 +257,26 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
           r.lat !== null && r.lng !== null ? distanceKm(filters.lat!, filters.lng!, r.lat, r.lng) : undefined,
       }))
       .filter((r) => !filters.raio || (r.distanceFromUserKm !== undefined && r.distanceFromUserKm <= filters.raio));
+  }
+
+  // Distância e preço por último: a prova que bate com o resto, mas não informa o dado, é contada à parte.
+  // A maioria das importadas chega sem distância e sem preço, e sumir com elas sem aviso parecia busca quebrada.
+  const unknown = { distance: 0, price: 0 };
+  if (filters.dist || filters.preco !== undefined) {
+    const maxCents = filters.preco !== undefined ? Math.round(filters.preco * 100) : null;
+    items = items.filter((r) => {
+      const distOk = !filters.dist || matchesDistanceBucket(r.distancesKm, filters.dist);
+      const distUnknown = !!filters.dist && r.distancesKm.length === 0;
+      // Sem preço conhecido não dá para dizer se é gratuita ou cabe no valor
+      const priceOk = maxCents === null || (r.priceKnown && r.priceMinCents <= maxCents);
+      const priceUnknown = maxCents !== null && !r.priceKnown;
+      if (distOk && priceOk) return true;
+      if ((distOk || distUnknown) && (priceOk || priceUnknown)) {
+        if (distUnknown) unknown.distance++;
+        else unknown.price++;
+      }
+      return false;
+    });
   }
 
   const total = items.length;
@@ -237,5 +289,7 @@ export async function searchRaces(filters: SearchFilters, now: Date) {
     items: items.slice((page - 1) * SEARCH_PAGE_SIZE, page * SEARCH_PAGE_SIZE),
     /** Para o mapa: todos os resultados com coordenadas, sem paginação */
     mapItems: items.filter((r) => r.lat !== null && r.lng !== null),
+    /** Provas que batem com os outros filtros, mas ficaram de fora por não informar distância ou preço */
+    unknown,
   };
 }

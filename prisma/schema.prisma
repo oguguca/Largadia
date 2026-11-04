@@ -35,7 +35,9 @@ model Race {
   name                String
   /// Data e horário da largada (instante UTC; exibido em America/Sao_Paulo)
   startsAt            DateTime
-  city                String
+  /// false quando o horário não veio na importação (o site mostra só a data)
+  timeKnown           Boolean            @default(true)
+  city               String
   citySlug            String
   /// UF com 2 letras
   state               String             @db.Char(2)
@@ -46,10 +48,14 @@ model Race {
   /// Faixa de preço em centavos (0 = gratuita)
   priceMinCents       Int
   priceMaxCents       Int
+  /// false quando o preço não veio na importação (o site mostra "Preço no site" em vez de "Gratuita")
+  priceKnown          Boolean            @default(true)
   registrationUrl     String
   registrationStatus  RegistrationStatus
   /// Quando as inscrições abrem (usado em "Inscrições abrindo em breve")
   registrationOpensAt DateTime?
+  /// Último dia de inscrição; depois dele o site mostra "Inscrições encerradas" sozinho
+  registrationClosesAt DateTime?
   organizer           String
   organizerEmail      String?
   description         String             @db.Text
@@ -63,6 +69,8 @@ model Race {
   source              RaceSource         @default(ORGANIZADOR)
   /// Página de origem usada no cadastro rápido (ex.: página da prova na plataforma)
   sourceUrl           String?
+  /// ID do evento na plataforma de origem (ex.: "ticketsports:85425"); evita duplicar ao reimportar
+  externalId          String?            @unique
   /// Cupom de desconto negociado com o organizador
   couponCode          String?
   /// Texto curto do desconto, ex.: "10% off"
@@ -71,6 +79,9 @@ model Race {
   featured            Boolean            @default(false)
   featuredOrder       Int?
   clicks              RaceClick[]
+  raffles             Raffle[]
+  pointClaims         PointClaim[]
+  runLogs             RunLog[]
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
@@ -104,14 +115,26 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
+  id                   String        @id @default(cuid())
+  name                 String
+  email                String        @unique
   /// scrypt: "salt:hash" em hex
-  passwordHash String?
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  passwordHash         String?
+  role                 Role          @default(USER)
+  /// Assinatura Premium (Stripe). O status espelha o da assinatura no Stripe, atualizado pelo webhook.
+  stripeCustomerId     String?       @unique
+  stripeSubscriptionId String?       @unique
+  /// active, trialing, past_due, canceled, incomplete… do Stripe, ou "pix" para período pré-pago
+  subscriptionStatus   String?
+  /// Fim do período pago atual
+  subscriptionEndsAt   DateTime?
+  raffleEntries        RaffleEntry[]
+  rafflesWon           Raffle[]
+  pointClaims          PointClaim[]
+  runLogs              RunLog[]
+  pixPayments          PixPayment[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 }
 
 /// Janela fixa de rate limit para formulários públicos (funciona em serverless sem Redis)
@@ -121,4 +144,165 @@ model RateLimitBucket {
   count       Int      @default(0)
 
   @@id([key, windowStart])
+}
+
+enum RaffleStatus {
+  RASCUNHO
+  ABERTO
+  ENCERRADO
+  SORTEADO
+}
+
+/// Sorteio de prêmio (ex.: inscrição em uma prova). Gerido no admin.
+model Raffle {
+  id             String        @id @default(cuid())
+  title          String
+  /// O que o ganhador recebe, ex.: "1 inscrição para a Meia de SP"
+  prize          String
+  description    String        @db.Text
+  imageUrl       String?
+  /// Prova ligada ao prêmio, quando houver
+  raceId         String?
+  race           Race?         @relation(fields: [raceId], references: [id], onDelete: SetNull)
+  /// Fim das participações. Vazio = fica aberto até o admin encerrar manualmente
+  entriesCloseAt DateTime?
+  status         RaffleStatus  @default(RASCUNHO)
+  /// Só assinantes Premium ativos podem participar
+  premiumOnly    Boolean       @default(true)
+  /// Meta: o sorteio acontece quando o Largadia tiver esse número de assinantes Premium ativos
+  drawAtSubscribers Int?
+  winnerId       String?
+  winner         User?         @relation(fields: [winnerId], references: [id], onDelete: SetNull)
+  drawnAt        DateTime?
+  entries        RaffleEntry[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status, entriesCloseAt])
+}
+
+/// Participação de um usuário em um sorteio (uma por pessoa)
+model RaffleEntry {
+  id        String   @id @default(cuid())
+  raffleId  String
+  raffle    Raffle   @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([raffleId, userId])
+}
+
+enum ClaimStatus {
+  PENDENTE
+  APROVADA
+  RECUSADA
+}
+
+/// "Eu corri": comprovação enviada pelo assinante. Os pontos só contam depois que o admin aprova.
+model PointClaim {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Prova do calendário; vazio quando o corredor informou uma prova que não está no site
+  raceId     String?
+  race       Race?       @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  /// Prova informada à mão (quando raceId é vazio): nome, dia, cidade e UF
+  customRaceName String?
+  customRaceDate DateTime?
+  customCity     String?
+  customState    String? @db.Char(2)
+  /// Dia da prova (do calendário ou informado); define em que temporada do ranking os pontos contam
+  raceDate   DateTime?
+  /// Distância corrida, em km (uma das distâncias da prova)
+  distanceKm Float
+  /// Link do comprovante: resultado oficial, Strava, foto da medalha/número de peito
+  proofUrl   String
+  bibNumber  String?
+  /// Nome completo de quem correu, como aparece no resultado oficial
+  runnerName String?
+  /// Tempo oficial de conclusão, em segundos
+  finishSeconds Int?
+  /// Pontos calculados no envio; somam no saldo só quando APROVADA
+  points     Int
+  status     ClaimStatus @default(PENDENTE)
+  /// Motivo da recusa, mostrado ao corredor
+  reviewNote String?
+  reviewedAt DateTime?
+  createdAt  DateTime    @default(now())
+
+  @@unique([userId, raceId])
+  @@index([status, createdAt])
+  @@index([status, raceDate])
+}
+
+/// Imagem enviada pelo admin (ex.: foto do prêmio de um sorteio), já reduzida e em WebP; servida em /api/imagens/[id]
+model Upload {
+  id          String   @id @default(cuid())
+  contentType String
+  data        Bytes
+  width       Int
+  height      Int
+  createdAt   DateTime @default(now())
+}
+
+/// Pagamento Pix de um período Premium. O id é o da sessão do Checkout: liberar o acesso duas vezes é impossível.
+model PixPayment {
+  id          String   @id
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  months      Int
+  amountCents Int
+  /// Premium liberado até esta data por este pagamento
+  validUntil  DateTime
+  /// PaymentIntent do Stripe, para achar o pagamento quando vier um reembolso
+  paymentIntentId String?   @unique
+  /// Reembolsado: os meses deste pagamento já foram descontados do Premium
+  refundedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// "Minhas corridas": prova que a pessoa já correu ou vai correr, como uma estante de livros, com a avaliação dela.
+/// Prova futura entra como "próxima largada"; a avaliação abre no dia da prova.
+/// Grátis para qualquer conta. Comprovação aprovada nos pontos entra aqui sozinha.
+model RunLog {
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Prova do calendário; vazio quando a pessoa informou uma prova que não está no site
+  raceId             String?
+  race               Race?     @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  /// Prova informada à mão (quando raceId é vazio): nome, dia, cidade e UF
+  customRaceName     String?
+  customCity         String?
+  customState        String?   @db.Char(2)
+  /// Dia da prova (do calendário ou informado); ordena a estante
+  raceDate           DateTime
+  /// Corrida virtual: a pessoa correu (ou vai correr) a distância onde quiser, sem largada no local
+  virtual            Boolean   @default(false)
+  /// Distância corrida, em km
+  distanceKm         Float?
+  /// Tempo de conclusão, em segundos
+  finishSeconds      Int?
+  /// Nota geral de 0,5 a 5, de meia em meia estrela; vazia enquanto a pessoa não avaliou
+  rating             Float?
+  /// Notas opcionais, também de 0,5 a 5
+  ratingCourse       Float?
+  ratingOrganization Float?
+  ratingKit          Float?
+  ratingHydration    Float?
+  comment            String?   @db.Text
+  /// Foto enviada pela pessoa (medalha, largada) para a capa; id de Upload, servida em /api/imagens/[id]
+  photoId            String?
+  /// Admin escondeu a avaliação da página da prova (continua na estante da pessoa)
+  hiddenAt           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([userId, raceId])
+  @@index([userId, raceDate])
+  @@index([raceId, rating])
+  @@index([createdAt])
 }

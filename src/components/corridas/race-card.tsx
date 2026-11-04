@@ -12,7 +12,7 @@ export function RaceCard({ race }: { race: RaceCardData }) {
       className={`group flex w-full overflow-hidden ${race.isPast ? "opacity-75" : ""} rounded-2xl bg-white shadow-sm ring-1 ring-asfalto-100 transition hover:-translate-y-0.5 hover:shadow-md sm:flex-col`}
     >
       <div className="relative w-28 shrink-0 sm:w-full">
-        <RaceVisual imageUrl={race.imageUrl} type={race.type} name={race.name} className="h-full w-full sm:h-36" />
+        <RaceVisual imageUrl={race.imageUrl} type={race.type} name={race.name} className="h-full w-full sm:aspect-square sm:h-auto" />
         <div className="absolute top-2 left-2 rounded-lg bg-asfalto-950/90 px-2 py-1 text-center leading-none text-white">
           <span className="block font-display text-xl font-bold">{day}</span>
           <span className="block text-[10px] uppercase">{month}</span>
@@ -23,7 +23,8 @@ export function RaceCard({ race }: { race: RaceCardData }) {
           {race.name}
         </h3>
         <p className="text-sm text-asfalto-500">
-          {race.city}/{race.state} · {formatTime(race.startsAt)}
+          {race.city}/{race.state}
+          {race.timeKnown && <> · {formatTime(race.startsAt)}</>}
           {race.distanceFromUserKm !== undefined && (
             <> · {Math.round(race.distanceFromUserKm)} km de você</>
           )}
@@ -41,7 +42,7 @@ export function RaceCard({ race }: { race: RaceCardData }) {
         <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
           {race.isPast ? <PastBadge /> : <StatusBadge status={race.registrationStatus} />}
           <span className="text-sm font-medium text-asfalto-700">
-            {formatPriceRange(race.priceMinCents, race.priceMaxCents)}
+            {formatPriceRange(race.priceMinCents, race.priceMaxCents, race.priceKnown)}
           </span>
         </div>
       </div>

@@ -11,6 +11,9 @@ import { PastBadge, StatusBadge } from "@/components/corridas/status-badge";
 import { googleCalendarUrl, platformName } from "@/domain/corridas/links";
 import { RaceMapLazy } from "@/components/corridas/race-map-lazy";
 import { raceJsonLd } from "./json-ld";
+import { ClaimSection } from "./claim-section";
+import { PlanSection, ReviewsSection } from "./reviews-section";
+import { pontos } from "@/config/pontos";
 
 export async function generateMetadata(props: PageProps<"/corrida/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
@@ -42,6 +45,9 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
 
   const canRegister = !race.isPast && race.registrationStatus === "ABERTAS";
   const platform = platformName(race.registrationUrl);
+  // Local cadastrado igual à cidade (comum nas importadas) não se repete
+  const venue = race.venue && race.venue.trim().toLowerCase() !== race.city.trim().toLowerCase() ? race.venue : null;
+  const longest = race.distancesKm.length ? Math.max(...race.distancesKm) : null;
 
   return (
     <article className="pb-24 md:pb-10">
@@ -52,7 +58,7 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
       />
 
       <div className="relative">
-        <RaceVisual imageUrl={race.imageUrl} type={race.type} name={race.name} className="h-48 w-full md:h-72" />
+        <RaceVisual imageUrl={race.imageUrl} type={race.type} name={race.name} eager className="h-48 w-full md:h-72" />
         <div className="absolute inset-0 bg-gradient-to-t from-asfalto-950/90 via-asfalto-950/30 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 mx-auto max-w-4xl px-4 pb-4 text-white">
           <nav className="mb-1 text-xs text-asfalto-300" aria-label="Trilha">
@@ -68,9 +74,14 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
       <div className="mx-auto grid max-w-4xl gap-6 px-4 py-6 md:grid-cols-[1fr_18rem]">
         <div className="space-y-6">
           {race.isPast && (
-            <p className="rounded-xl bg-asfalto-100 p-3 text-sm text-asfalto-700">
-              Esta prova já aconteceu. Correu? Em breve você poderá avaliar e enviar sua comprovação.
-            </p>
+            <Suspense fallback={<div className="h-32 animate-pulse rounded-2xl bg-asfalto-100" />}>
+              <ClaimSection race={race} />
+            </Suspense>
+          )}
+          {!race.isPast && (
+            <Suspense fallback={<div className="h-20 animate-pulse rounded-2xl bg-asfalto-100" />}>
+              <PlanSection race={race} />
+            </Suspense>
           )}
           {!race.isPast && (
             <div className="flex gap-2 text-sm md:hidden">
@@ -84,13 +95,14 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
           )}
           <dl className="grid grid-cols-2 gap-3 rounded-2xl bg-white p-4 ring-1 ring-asfalto-100 sm:grid-cols-3">
             <Info label="Data">{formatDateLong(race.startsAt)}</Info>
-            <Info label="Largada">{formatTime(race.startsAt)}</Info>
+            <Info label="Largada">{race.timeKnown ? formatTime(race.startsAt) : "Horário no site oficial"}</Info>
             <Info label="Tipo">{raceTypeLabels[race.type]}</Info>
             <Info label="Local">
-              {race.venue} — {race.city}/{race.state}
+              {venue ? `${venue}, ` : ""}
+              {race.city}/{race.state}
             </Info>
-            <Info label="Distâncias">{race.distancesKm.map(formatDistance).join(" · ")}</Info>
-            <Info label="Valor">{formatPriceRange(race.priceMinCents, race.priceMaxCents)}</Info>
+            <Info label="Distâncias">{race.distancesKm.length ? race.distancesKm.map(formatDistance).join(" · ") : "No site oficial"}</Info>
+            <Info label="Valor">{formatPriceRange(race.priceMinCents, race.priceMaxCents, race.priceKnown)}</Info>
             <Info label="Organização">{race.organizer}</Info>
           </dl>
 
@@ -98,6 +110,12 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
             <h2 className="mb-2 font-display text-xl font-bold uppercase">Sobre a prova</h2>
             <div className="space-y-3 leading-relaxed whitespace-pre-line text-asfalto-800">{race.description}</div>
           </section>
+
+          {race.isPast && (
+            <Suspense fallback={<div className="h-40 animate-pulse rounded-2xl bg-asfalto-100" />}>
+              <ReviewsSection race={race} />
+            </Suspense>
+          )}
 
           {race.lat !== null && race.lng !== null && (
             <section>
@@ -121,16 +139,19 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
             </section>
           )}
 
-          <section>
-            <h2 className="mb-2 font-display text-xl font-bold uppercase">Avaliações de quem correu</h2>
-            <p className="rounded-2xl bg-white p-4 text-sm text-asfalto-500 ring-1 ring-asfalto-100">
-              Ainda não há avaliações. Depois da prova, quem correu poderá avaliar organização, hidratação, kit, percurso e medalha.
-            </p>
-          </section>
         </div>
 
         {/* No celular, o CTA fica fixo acima da barra de navegação */}
         <aside className="fixed inset-x-0 bottom-14 z-30 space-y-2 border-t border-asfalto-100 bg-white p-3 md:static md:self-start md:rounded-2xl md:border-0 md:p-4 md:ring-1 md:ring-asfalto-100">
+          {/* Cartaz inteiro: no topo ele aparece cortado, e é nele que o organizador põe as informações */}
+          {race.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- imagens de organizadores vêm de domínios arbitrários
+            <img
+              src={race.imageUrl}
+              alt={`Cartaz de ${race.name}`}
+              className="hidden aspect-square w-full rounded-xl bg-asfalto-950 object-contain md:block"
+            />
+          )}
           <div className="hidden md:block">
             {race.isPast ? <PastBadge /> : <StatusBadge status={race.registrationStatus} />}
           </div>
@@ -166,6 +187,20 @@ async function RaceDetail({ params }: { params: PageProps<"/corrida/[slug]">["pa
             </div>
           )}
           <p className="hidden text-xs text-asfalto-500 md:block">A inscrição é feita no site oficial do organizador.</p>
+          {!race.isPast && (
+            <Link
+              href="/assinatura"
+              className="hidden rounded-xl bg-asfalto-950 p-3 text-sm text-asfalto-300 hover:bg-asfalto-900 md:block"
+            >
+              <span className="font-display text-lg font-bold text-white uppercase">
+                Vale {longest ? `até ${pontos.porProva + Math.round(longest * pontos.porKm)} pontos` : "pontos"}
+              </span>
+              <span className="block">
+                No Premium, cada prova soma {pontos.porProva} pontos, mais {pontos.porKm} por km.{" "}
+                <span className="font-semibold text-largada-500">Conhecer o Premium</span>
+              </span>
+            </Link>
+          )}
         </aside>
       </div>
     </article>

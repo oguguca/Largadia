@@ -30,6 +30,8 @@ async function Results({ searchParams }: { searchParams: PageProps<"/busca">["se
   const filters = parseSearchFilters(await searchParams);
   await connection();
   const result = await searchRaces(filters, new Date());
+  // Página e visualização não contam como filtro
+  const hasFilters = toQueryString(filters, { pagina: 1, view: "lista" }) !== "";
 
   return (
     <div className="grid gap-6 md:grid-cols-[18rem_1fr]">
@@ -54,6 +56,8 @@ async function Results({ searchParams }: { searchParams: PageProps<"/busca">["se
           <ViewToggle filters={filters} />
         </div>
 
+        <UnknownNotice filters={filters} unknown={result.unknown} />
+
         {filters.view === "mapa" ? (
           <div className="h-[70vh] overflow-hidden rounded-2xl ring-1 ring-asfalto-100">
             <RaceMapLazy
@@ -63,8 +67,17 @@ async function Results({ searchParams }: { searchParams: PageProps<"/busca">["se
           </div>
         ) : result.total === 0 ? (
           <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-asfalto-100">
-            <p className="font-semibold">Nada por aqui com esses filtros.</p>
-            <p className="mt-1 text-sm text-asfalto-500">Tente aumentar o raio, mudar as datas ou remover algum filtro.</p>
+            {hasFilters ? (
+              <>
+                <p className="font-semibold">Nada por aqui com esses filtros.</p>
+                <p className="mt-1 text-sm text-asfalto-500">Tente mudar as datas ou remover algum filtro.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold">Estamos montando o calendário.</p>
+                <p className="mt-1 text-sm text-asfalto-500">As primeiras provas aparecem aqui em breve.</p>
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -112,5 +125,40 @@ function Pagination({ filters, page, pages }: { filters: SearchFilters; page: nu
         </Link>
       )}
     </nav>
+  );
+}
+
+/**
+ * Aviso de provas que ficaram de fora só por não informarem distância ou preço.
+ * O link tira o filtro que as escondeu e mantém o resto da busca.
+ */
+function UnknownNotice({ filters, unknown }: { filters: SearchFilters; unknown: { distance: number; price: number } }) {
+  const items = [
+    unknown.distance > 0 && {
+      key: "dist",
+      text: `${unknown.distance} ${unknown.distance === 1 ? "prova não informa" : "provas não informam"} a distância e ${unknown.distance === 1 ? "ficou" : "ficaram"} de fora.`,
+      href: `/busca${toQueryString(filters, { dist: undefined, pagina: 1 })}`,
+      label: "Ver sem o filtro de distância",
+    },
+    unknown.price > 0 && {
+      key: "preco",
+      text: `${unknown.price} ${unknown.price === 1 ? "prova não informa" : "provas não informam"} o preço e ${unknown.price === 1 ? "ficou" : "ficaram"} de fora.`,
+      href: `/busca${toQueryString(filters, { preco: undefined, pagina: 1 })}`,
+      label: "Ver sem o filtro de preço",
+    },
+  ].filter((i): i is { key: string; text: string; href: string; label: string } => !!i);
+  if (!items.length) return null;
+  return (
+    <div className="mb-3 space-y-1 rounded-2xl bg-largada-100/60 px-4 py-3 text-sm text-asfalto-800 ring-1 ring-largada-500/20">
+      {items.map((i) => (
+        <p key={i.key}>
+          {i.text}{" "}
+          <Link href={i.href} className="font-semibold text-largada-700 hover:underline">
+            {i.label}
+          </Link>
+        </p>
+      ))}
+      <p className="text-xs text-asfalto-500">Muitos calendários de inscrição não divulgam esses dados. Confira no site oficial da prova.</p>
+    </div>
   );
 }

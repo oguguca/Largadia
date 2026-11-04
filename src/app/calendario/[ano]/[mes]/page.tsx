@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { getMonthRaces, type RaceCard as RaceCardData } from "@/domain/corridas/queries";
 import { RaceCard } from "@/components/corridas/race-card";
 import { MONTH_LABELS, monthPath, parseMonth, shiftMonth } from "@/lib/months";
-import { formatDateLong } from "@/lib/format";
+import { formatDateLong, formatDateShort } from "@/lib/format";
 
 type Props = PageProps<"/calendario/[ano]/[mes]">;
 
@@ -23,7 +23,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default function CalendarioMesPage(props: Props) {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6">
+    <div className="mx-auto max-w-6xl px-4 py-6">
       <Suspense fallback={<p className="text-asfalto-500">Carregando calendário…</p>}>
         <Month params={props.params} />
       </Suspense>
@@ -64,11 +64,11 @@ async function Month({ params }: { params: Props["params"] }) {
           Nenhuma corrida cadastrada neste mês ainda.
         </p>
       ) : (
-        <ol className="space-y-6">
+        <ol className="space-y-8">
           {[...days].map(([day, list]) => (
             <li key={day}>
-              <h2 className="mb-2 text-sm font-semibold text-asfalto-500 uppercase first-letter:uppercase">{day}</h2>
-              <ul className="grid gap-3 sm:grid-cols-2">
+              <DayHeading label={day} date={list[0].startsAt} count={list.length} />
+              <ul className="grid gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {list.map((r) => (
                   <li key={r.id} className="flex">
                     <RaceCard race={r} />
@@ -80,5 +80,25 @@ async function Month({ params }: { params: Props["params"] }) {
         </ol>
       )}
     </>
+  );
+}
+
+/** Cabeçalho do dia: número grande e dia da semana, preso no topo enquanto rola as provas do dia. */
+function DayHeading({ label, date, count }: { label: string; date: Date; count: number }) {
+  const [day, month] = formatDateShort(date).split(" de ");
+  const weekday = label.split(",")[0];
+  return (
+    <h2 className="sticky top-14 z-10 -mx-4 mb-3 flex items-baseline gap-3 border-b border-asfalto-100 bg-asfalto-50/95 px-4 py-2 backdrop-blur">
+      <span aria-hidden className="font-display text-4xl leading-none font-extrabold text-largada-600 tabular-nums">
+        {day}
+      </span>
+      <span aria-hidden className="font-display text-xl font-bold uppercase">
+        {month} <span className="ml-1 text-asfalto-500 capitalize">{weekday}</span>
+      </span>
+      <span className="ml-auto text-sm font-normal text-asfalto-500">
+        {count} {count === 1 ? "prova" : "provas"}
+      </span>
+      <span className="sr-only">{label}</span>
+    </h2>
   );
 }

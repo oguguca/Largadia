@@ -12,13 +12,11 @@ export function SiteFooter() {
         </div>
         <nav className="grid grid-cols-2 gap-2 text-sm" aria-label="Rodapé">
           <Link href="/busca" className="hover:text-white">Corridas</Link>
-          <Link href="/mapa" className="hover:text-white">Mapa</Link>
-          <Link href="/organizadores" className="hover:text-white">Para organizadores</Link>
-          <Link href="/sorteios" className="hover:text-white">Sorteios</Link>
+          <Link href="/assinatura" className="hover:text-white">Premium</Link>
           <Link href="/termos" className="hover:text-white">Termos de uso</Link>
           <Link href="/privacidade" className="hover:text-white">Privacidade</Link>
         </nav>
-        <p className="text-xs text-asfalto-500 md:text-right">
+        <p className="text-xs text-asfalto-300 md:text-right">
           As informações das provas são fornecidas pelos organizadores. Confira sempre o site oficial antes de se inscrever.
         </p>
       </div>

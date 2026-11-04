@@ -43,3 +43,24 @@ body {
 .leaflet-container {
   font-family: var(--font-inter);
 }
+
+/* Foco do teclado visível em fundo claro e escuro, na cor da marca. Na camada base: quem já desenha
+   o próprio indicador (outline-none + ring) continua mandando */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-largada-500);
+    outline-offset: 2px;
+  }
+}
+
+/* Quem pede menos movimento no sistema não vê transições nem animações */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

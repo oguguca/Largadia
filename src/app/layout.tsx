@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   description:
     "Agenda de corridas de rua do Brasil: encontre provas por cidade, distância e data, e veja onde as inscrições estão abertas.",
   openGraph: { siteName: "Largadia", locale: "pt_BR", type: "website" },
+  manifest: "/site.webmanifest",
 };
 
 export const viewport: Viewport = {

@@ -3,25 +3,12 @@
 import { useActionState } from "react";
 import { importFromUrl, type FormState, type ImportState } from "../actions";
 import { RaceAdminForm, type RaceFormValues } from "../race-admin-form";
+import { draftToFormValues } from "../draft-values";
 
 export function ImportAndForm({ save }: { save: (prev: FormState, form: FormData) => Promise<FormState> }) {
   const [state, action, pending] = useActionState<ImportState, FormData>(importFromUrl, null);
   const d = state?.draft;
-  const initial: RaceFormValues = d
-    ? {
-        name: d.name ?? "",
-        date: d.date ?? "",
-        time: d.time ?? "",
-        city: d.city ?? "",
-        state: d.state ?? "",
-        venue: d.venue ?? "",
-        distances: d.distances?.join(" ") ?? "",
-        description: d.description ?? "",
-        organizer: d.organizer ?? "",
-        registrationUrl: d.registrationUrl,
-        sourceUrl: d.registrationUrl,
-      }
-    : {};
+  const initial: RaceFormValues = d ? draftToFormValues(d) : {};
 
   return (
     <div className="space-y-6">
@@ -48,11 +35,11 @@ export function ImportAndForm({ save }: { save: (prev: FormState, form: FormData
         {d && (
           <p className="mt-2 text-sm text-pace-500">
             Preenchido: {Object.entries(initial).filter(([, v]) => v).length} campos. Confira tudo antes de salvar.
-            {d.imageSuggestion && (
+            {d.imageUrl && (
               <>
-                {" "}Imagem encontrada (use só com autorização):{" "}
-                <a href={d.imageSuggestion} target="_blank" rel="noreferrer" className="underline">
-                  abrir
+                {" "}
+                <a href={d.imageUrl} target="_blank" rel="noreferrer" className="underline">
+                  Ver imagem
                 </a>
               </>
             )}

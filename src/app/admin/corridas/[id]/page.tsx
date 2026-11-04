@@ -56,6 +56,11 @@ export default async function EditarCorridaPage(props: PageProps<"/admin/corrida
           )}
         </p>
       </div>
+      {(sp.falta === "revisao" || race.moderationNote) && (
+        <p className="rounded-lg bg-largada-100 p-3 text-sm text-largada-700">
+          {race.moderationNote ?? "Informe as distâncias antes de aprovar."} Ao salvar este formulário a prova conta como revisada.
+        </p>
+      )}
       {sp.falta === "coordenadas" && (
         <p className="rounded-lg bg-largada-100 p-3 text-sm text-largada-700">
           Para aprovar, informe latitude e longitude (ou deixe vazio para tentarmos encontrar) e salve como Publicada.

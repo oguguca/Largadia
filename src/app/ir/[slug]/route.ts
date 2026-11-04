@@ -12,7 +12,8 @@ export async function GET(_request: Request, ctx: RouteContext<"/ir/[slug]">) {
     where: { slug, moderationStatus: "APROVADA" },
     select: { id: true, registrationUrl: true },
   });
-  if (!race) return NextResponse.redirect(new URL("/busca", _request.url));
+  // Só segue para links http(s); qualquer outro esquema gravado por engano volta para a busca
+  if (!race || !/^https?:\/\//i.test(race.registrationUrl)) return NextResponse.redirect(new URL("/busca", _request.url));
 
   // Falha ao registrar o clique não pode impedir a pessoa de chegar na inscrição
   await db.raceClick

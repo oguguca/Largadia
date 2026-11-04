@@ -1,4 +1,5 @@
 import { UFS } from "@/config/corridas";
+import type { RaceType } from "@/generated/prisma/enums";
 
 /** Rascunho de corrida extraído de uma página. Todos os campos são sugestões para o admin revisar. */
 export type RaceDraft = {
@@ -9,10 +10,14 @@ export type RaceDraft = {
   state?: string;
   venue?: string;
   distances?: number[];
+  type?: RaceType;
+  /** Faixa de preço em reais */
+  priceMin?: number;
+  priceMax?: number;
   description?: string;
   organizer?: string;
-  /** Imagem encontrada na página. Não é preenchida automaticamente: só use com autorização. */
-  imageSuggestion?: string;
+  /** Imagem de divulgação da página (JSON-LD ou og:image) */
+  imageUrl?: string;
   registrationUrl: string;
 };
 
@@ -112,6 +117,45 @@ export function extractCityState(text: string): { city: string; state: string } 
   }
 }
 
+/** Distância e tipo deduzidos do nome, para quando a página não traz as modalidades. */
+export function inferFromName(name: string): { distances: number[]; type: RaceType } {
+  const n = name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const distances = /\bmeia[\s-]+maratona\b/.test(n) ? [21.1] : /\bmaratona\b/.test(n) ? [42.195] : [];
+  const type: RaceType = /\b(kids|infantil|crianca)/.test(n)
+    ? "KIDS"
+    : /\b(trail|trilha|montanha|cross country|skyrunning)/.test(n)
+      ? "TRAIL"
+      : /\b(noturna|night)\b/.test(n)
+        ? "NOTURNA"
+        : /\b(solidaria|beneficente)\b/.test(n)
+          ? "SOLIDARIA"
+          : "RUA";
+  return { distances, type };
+}
+
+const SMALL_WORDS = new Set(["a", "o", "as", "os", "e", "de", "da", "do", "das", "dos", "em", "na", "no", "nas", "nos"]);
+
+/** "CORRIDA DAS FLORES 2026" -> "Corrida das Flores 2026". Nomes que já têm minúsculas ficam como estão. */
+export function tidyName(name: string): string {
+  if (/\p{Ll}/u.test(name)) return name;
+  return name
+    .toLowerCase()
+    .split(/(\s+)/)
+    .map((w, i) => {
+      if ((UFS as readonly string[]).includes(w.toUpperCase()) && w.length === 2 && !SMALL_WORDS.has(w)) return w.toUpperCase();
+      if (i > 0 && SMALL_WORDS.has(w)) return w;
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    })
+    .join("");
+}
+
+/** "Parque X, Sorocaba, SP, Brasil" -> { venue: "Parque X", city: "Sorocaba", state: "SP" } */
+function splitPlace(place: string): { venue: string; city?: string; state?: string } {
+  const m = /^(.*?),\s*([^,]+),\s*([A-Z]{2})(?:,\s*Brasil)?$/i.exec(place.trim());
+  if (!m || !(UFS as readonly string[]).includes(m[3].toUpperCase())) return { venue: place.replace(/,\s*Brasil$/i, "").trim() };
+  return { venue: m[1].trim() || m[2].trim(), city: m[2].trim(), state: m[3].toUpperCase() };
+}
+
 /** Monta o rascunho a partir do HTML. Prioridade: JSON-LD > OpenGraph > texto. */
 export function extractRaceDraft(html: string, url: string): RaceDraft {
   const draft: RaceDraft = { registrationUrl: url };
@@ -130,7 +174,12 @@ export function extractRaceDraft(html: string, url: string): RaceDraft {
     }
     const loc = ev.location as Record<string, unknown> | undefined;
     if (loc && typeof loc === "object") {
-      if (typeof loc.name === "string") draft.venue = loc.name.trim();
+      if (typeof loc.name === "string") {
+        const place = splitPlace(loc.name);
+        draft.venue = place.venue;
+        draft.city = place.city;
+        draft.state = place.state;
+      }
       const addr = loc.address as Record<string, unknown> | undefined;
       if (addr && typeof addr === "object") {
         if (typeof addr.addressLocality === "string") draft.city = addr.addressLocality.trim();
@@ -143,14 +192,15 @@ export function extractRaceDraft(html: string, url: string): RaceDraft {
     if (org && typeof org.name === "string") draft.organizer = org.name.trim();
     if (typeof ev.description === "string") draft.description = ev.description.trim();
     const img = Array.isArray(ev.image) ? ev.image[0] : ev.image;
-    if (typeof img === "string") draft.imageSuggestion = img;
+    if (typeof img === "string") draft.imageUrl = img;
   }
 
   const title = meta(html, "og:title") ?? /<title>([^<]*)<\/title>/i.exec(html)?.[1];
   draft.name ??= title ? cleanTitle(decodeEntities(title)) : undefined;
+  if (draft.name) draft.name = tidyName(draft.name);
   const ogDesc = meta(html, "og:description") ?? meta(html, "description");
   draft.description ??= ogDesc && ogDesc.length > 40 ? ogDesc : undefined;
-  draft.imageSuggestion ??= meta(html, "og:image");
+  draft.imageUrl ??= meta(html, "og:image");
 
   const text = visibleText(html);
   if (!draft.city || !draft.state) {
@@ -161,8 +211,11 @@ export function extractRaceDraft(html: string, url: string): RaceDraft {
     }
   }
   draft.date ??= extractDate(text);
+  const fromName = inferFromName(draft.name ?? "");
   const distances = extractDistances(`${draft.name ?? ""} ${draft.description ?? ""} ${text}`);
   if (distances.length) draft.distances = distances;
+  else if (fromName.distances.length) draft.distances = fromName.distances;
+  draft.type = fromName.type;
 
   return draft;
 }
