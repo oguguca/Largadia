@@ -154,25 +154,17 @@ function Check({ className = "" }: { className?: string }) {
   );
 }
 
-/** Convite do topo: para quem não assina, chama para o Premium; para o assinante, mostra a posição dele. */
+/** Convite do topo para o Premium. O assinante não vê: os pontos dele já estão em "Sua temporada", logo abaixo. */
 async function HeroPremium() {
   const viewer = await getViewer();
-  const pill =
-    "mt-8 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 py-2 pr-4 pl-2 text-sm text-asfalto-300 hover:border-largada-500/60 hover:text-white";
-  const tag = "rounded-lg bg-largada-500 px-2 py-1 font-display font-bold text-asfalto-950 uppercase";
-  if (!viewer.premium) {
-    return (
-      <a href="#premium" className={pill}>
-        <span className={tag}>Premium</span>
-        Suas corridas valem pontos e você concorre aos sorteios de prêmios.
-      </a>
-    );
-  }
-  const { viewer: me } = await getPointsRanking(viewer.id, seasonOf(new Date()), 0);
+  if (viewer.premium) return null;
   return (
-    <a href="#sua-temporada" className={pill}>
-      <span className={tag}>{me ? `${me.position}º` : "Premium"}</span>
-      {me?.points ? `Você tem ${me.points} pontos nesta temporada.` : "Registre sua primeira corrida e comece a pontuar."}
+    <a
+      href="#premium"
+      className="mt-8 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 py-2 pr-4 pl-2 text-sm text-asfalto-300 hover:border-largada-500/60 hover:text-white"
+    >
+      <span className="rounded-lg bg-largada-500 px-2 py-1 font-display font-bold text-asfalto-950 uppercase">Premium</span>
+      Suas corridas valem pontos e você concorre aos sorteios de prêmios.
     </a>
   );
 }
